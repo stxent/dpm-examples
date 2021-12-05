@@ -1,0 +1,9 @@
+[submodule "xcore"]
+	path = xcore
+	url = ../xcore.git
+[submodule "halm"]
+	path = halm
+	url = ../halm.git
+[submodule "dpm"]
+	path = dpm
+	url = ../dpm.git
