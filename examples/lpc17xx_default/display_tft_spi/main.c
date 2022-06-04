@@ -4,8 +4,8 @@
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#include <dpm/drivers/displays/display.h>
-#include <dpm/drivers/displays/st7735.h>
+#include <dpm/displays/display.h>
+#include <dpm/displays/st7735.h>
 #include <halm/pin.h>
 #include <halm/platform/lpc/clocking.h>
 #include <halm/platform/lpc/gptimer.h>

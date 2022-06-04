@@ -4,11 +4,11 @@
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#include <dpm/drivers/displays/display.h>
-#include <dpm/drivers/displays/ili9325.h>
-#include <dpm/drivers/displays/s6d1121.h>
-#include <dpm/drivers/platform/lpc/memory_bus_dma.h>
-#include <dpm/drivers/platform/lpc/memory_bus_gpio.h>
+#include <dpm/displays/display.h>
+#include <dpm/displays/ili9325.h>
+#include <dpm/displays/s6d1121.h>
+#include <dpm/platform/lpc/memory_bus_dma.h>
+#include <dpm/platform/lpc/memory_bus_gpio.h>
 #include <halm/pin.h>
 #include <halm/platform/lpc/clocking.h>
 #include <halm/platform/lpc/fast_gpio_bus.h>
