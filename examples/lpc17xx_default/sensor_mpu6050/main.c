@@ -1,36 +1,43 @@
 /*
- * lpc17xx_default/sensor_xpt2046/main.c
+ * lpc17xx_default/sensor_mpu6050/main.c
  * Copyright (C) 2022 xent
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
+#include <dpm/sensors/mpu60xx.h>
 #include <dpm/sensors/sensor_handler.h>
-#include <dpm/sensors/xpt2046.h>
 #include <halm/generic/work_queue.h>
 #include <halm/pin.h>
 #include <halm/platform/lpc/clocking.h>
 #include <halm/platform/lpc/gptimer.h>
+#include <halm/platform/lpc/i2c.h>
 #include <halm/platform/lpc/pin_int.h>
 #include <halm/platform/lpc/serial.h>
-#include <halm/platform/lpc/spi_dma.h>
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 /*----------------------------------------------------------------------------*/
-#define CS_PIN      PIN(1, 15)
-#define EV_PIN      PIN(2, 10)
+#define BUFFER_SIZE 512
+#define INT_PIN     PIN(0, 3)
 #define LED_PIN     PIN(1, 8)
 
-#define BUFFER_SIZE 512
-#define SPI_CHANNEL 1
+enum
+{
+  SENSOR_TAG_ACCEL,
+  SENSOR_TAG_GYRO,
+  SENSOR_TAG_THERMO
+};
 
 struct Context
 {
   struct Interface *serial;
-  struct Sensor *sensor;
+  struct Sensor *sensors[3];
+  struct Timer *chrono;
   struct Timer *timer;
   struct Pin led;
 
+  bool enabled[3];
   bool automatic;
   bool manual;
   bool queued;
@@ -43,9 +50,14 @@ static void serialHandlerTask(void *);
 static void setupClock(void);
 /*----------------------------------------------------------------------------*/
 static const struct PinIntConfig eventConfig = {
-    .pin = EV_PIN,
-    .event = PIN_FALLING,
-    .pull = PIN_PULLUP
+    .pin = INT_PIN,
+    .event = PIN_RISING,
+    .pull = PIN_PULLDOWN
+};
+
+static const struct GpTimerConfig chronoTimerConfig = {
+    .frequency = 1000000,
+    .channel = 2
 };
 
 static const struct GpTimerConfig sampleTimerConfig = {
@@ -67,24 +79,11 @@ static const struct SerialConfig serialConfig = {
     .channel = 1
 };
 
-static const struct SpiDmaConfig spiConfig[] = {
-    {
-        .rate = 2000000,
-        .sck = PIN(0, 15),
-        .miso = PIN(0, 17),
-        .mosi = PIN(0, 18),
-        .dma = {0, 1},
-        .channel = 0,
-        .mode = 0
-    }, {
-        .rate = 2000000,
-        .sck = PIN(0, 7),
-        .miso = PIN(0, 8),
-        .mosi = PIN(0, 9),
-        .dma = {3, 2},
-        .channel = 1,
-        .mode = 0
-    }
+static const struct I2CConfig i2cConfig = {
+    .rate = 400000,
+    .scl = PIN(0, 11),
+    .sda = PIN(0, 10),
+    .channel = 2
 };
 
 static const struct WorkQueueConfig workQueueConfig = {
@@ -108,23 +107,79 @@ static const struct PllConfig sysPllConfig = {
 static void onSampleRequest(void *argument)
 {
   struct Context * const context = argument;
-  sensorSample(context->sensor);
+
+  for (size_t i = 0; i < ARRAY_SIZE(context->sensors); ++i)
+  {
+    if (context->enabled[i])
+      sensorSample(context->sensors[i]);
+  }
 }
 /*----------------------------------------------------------------------------*/
 static void onSensorData(void *argument, int tag __attribute__((unused)),
     const void *buffer, size_t length)
 {
   struct Context * const context = argument;
-  int16_t values[3];
+  const unsigned long timestamp = timerGetValue(context->chrono);
 
-  assert(length == sizeof(values));
-  memcpy(values, buffer, length);
-
-  size_t count;
+  size_t count = 0;
   char text[64];
 
-  pinToggle(context->led);
-  count = sprintf(text, "%i %i %i\r\n", values[0], values[1], values[2]);
+  if (tag == SENSOR_TAG_THERMO)
+  {
+    int32_t value;
+
+    assert(length == sizeof(value));
+    memcpy(&value, buffer, length);
+
+    const char s = value >= 0 ? ' ' : '-';
+    const int i = abs((int)value) / 256;
+    const int q = ((value >= 0 ? value : -value) & 0xFF) * 1000 / 256;
+
+    count = sprintf(text, "%lu T: %c%i.%03i C\r\n", timestamp, s, i, q);
+  }
+  else if (tag == SENSOR_TAG_ACCEL || tag == SENSOR_TAG_GYRO)
+  {
+    int32_t values[3];
+
+    assert(length == sizeof(values));
+    memcpy(&values, buffer, length);
+
+    const char s[3] = {
+        values[0] >= 0 ? ' ' : '-',
+        values[1] >= 0 ? ' ' : '-',
+        values[2] >= 0 ? ' ' : '-'
+    };
+    const int i[3] = {
+        abs((int)values[0]) / 65536,
+        abs((int)values[1]) / 65536,
+        abs((int)values[2]) / 65536
+    };
+    const int q[3] = {
+        ((values[0] >= 0 ? values[0] : -values[0]) & 0xFFFF) * 1000 / 65536,
+        ((values[1] >= 0 ? values[1] : -values[1]) & 0xFFFF) * 1000 / 65536,
+        ((values[2] >= 0 ? values[2] : -values[2]) & 0xFFFF) * 1000 / 65536
+    };
+
+    if (tag == SENSOR_TAG_ACCEL)
+    {
+      count = sprintf(text, "%lu a: %c%i.%03i %c%i.%03i %c%i.%03i g\r\n",
+          timestamp,
+          s[0], i[0], q[0],
+          s[1], i[1], q[1],
+          s[2], i[2], q[2]
+      );
+    }
+    else
+    {
+      pinToggle(context->led);
+      count = sprintf(text, "%lu w: %c%i.%03i %c%i.%03i %c%i.%03i deg/s\r\n",
+          timestamp,
+          s[0], i[0], q[0],
+          s[1], i[1], q[1],
+          s[2], i[2], q[2]
+      );
+    }
+  }
 
   ifWrite(context->serial, text, count);
 }
@@ -144,9 +199,13 @@ static void serialHandlerTask(void *argument)
 {
 static const char HELP_MESSAGE[] =
       "Shortcuts:\r\n"
+      "\t1: toggle accelerometer\r\n"
+      "\t2: toggle gyroscope\r\n"
+      "\t3: toggle thermometer\r\n"
       "\ta: automatic mode\r\n"
       "\th: show this help message\r\n"
       "\tm: time-triggered mode\r\n"
+      "\tr: reset sensor\r\n"
       "\ts: read sample\r\n";
 
   struct Context * const context = argument;
@@ -157,15 +216,34 @@ static const char HELP_MESSAGE[] =
 
   while ((count = ifRead(context->serial, buffer, sizeof(buffer))) > 0)
   {
-    for (size_t i = 0; i < count; ++i)
+    for (size_t position = 0; position < count; ++position)
     {
-      switch (buffer[i])
+      switch (buffer[position])
       {
+        case '1':
+        case '2':
+        case '3':
+        {
+          const size_t i = buffer[position] - '1';
+
+          context->enabled[i] = !context->enabled[i];
+          break;
+        }
+
         case 'a':
           if (context->automatic)
-            sensorStop(context->sensor);
+          {
+            for (size_t i = 0; i < ARRAY_SIZE(context->sensors); ++i)
+              sensorStop(context->sensors[i]);
+          }
           else
-            sensorStart(context->sensor);
+          {
+            for (size_t i = 0; i < ARRAY_SIZE(context->sensors); ++i)
+            {
+              if (context->enabled[i])
+                sensorStart(context->sensors[i]);
+            }
+          }
           context->automatic = !context->automatic;
           break;
 
@@ -181,9 +259,21 @@ static const char HELP_MESSAGE[] =
           context->manual = !context->manual;
           break;
 
+        case 'r':
+          for (size_t i = 0; i < ARRAY_SIZE(context->sensors); ++i)
+          {
+            if (context->enabled[i])
+              sensorReset(context->sensors[i]);
+          }
+          break;
+
         case 's':
         case ' ':
-          sensorSample(context->sensor);
+          for (size_t i = 0; i < ARRAY_SIZE(context->sensors); ++i)
+          {
+            if (context->enabled[i])
+              sensorSample(context->sensors[i]);
+          }
           context->automatic = false;
           break;
       }
@@ -212,6 +302,10 @@ int main(void)
   struct Interrupt * const event = init(PinInt, &eventConfig);
   assert(event);
 
+  struct Timer * const chronoTimer = init(GpTimer, &chronoTimerConfig);
+  assert(chronoTimer);
+  timerEnable(chronoTimer);
+
   struct Timer * const sampleTimer = init(GpTimer, &sampleTimerConfig);
   assert(sampleTimer);
   timerSetOverflow(sampleTimer, 500000);
@@ -222,22 +316,22 @@ int main(void)
   struct Interface * const serial = init(Serial, &serialConfig);
   assert(serial);
 
-  struct Interface * const spi = init(SpiDma, &spiConfig[SPI_CHANNEL]);
-  assert(spi);
+  struct Interface * const i2c = init(I2C, &i2cConfig);
+  assert(i2c);
 
-  const struct XPT2046Config touchConfig = {
-      .bus = spi,
+  const struct MPU60XXConfig mpuConfig = {
+      .bus = i2c,
       .event = event,
       .timer = sensorTimer,
-      .cs = CS_PIN,
-      .rate = 100000,
-      .threshold = 100,
-      .x = 240,
-      .y = 320
+      .cs = 0,
+      .address = 0x68,
+      .rate = 400000,
+      .sampleRate = 100,
+      .accelScale = MPU60XX_ACCEL_16,
+      .gyroScale = MPU60XX_GYRO_2000
   };
-  struct XPT2046 * const touch = init(XPT2046, &touchConfig);
-  assert(touch);
-  xpt2046ResetCalibration(touch);
+  struct MPU60XX * const mpu = init(MPU60XX, &mpuConfig);
+  assert(mpu);
 
   /* Initialize Work Queue */
   WQ_DEFAULT = init(WorkQueue, &workQueueConfig);
@@ -246,14 +340,39 @@ int main(void)
   struct SensorHandler sh;
   shInit(&sh, 4, WQ_DEFAULT);
 
-  shAttach(&sh, touch, 0);
-  sensorReset(touch);
+  struct MPU60XXProxy * const accel = mpu60xxMakeAccelerometer(mpu);
+  assert(accel);
+
+  shAttach(&sh, accel, SENSOR_TAG_ACCEL);
+  sensorReset(accel);
+
+  struct MPU60XXProxy * const gyro = mpu60xxMakeGyroscope(mpu);
+  assert(gyro);
+
+  shAttach(&sh, gyro, SENSOR_TAG_GYRO);
+  sensorReset(gyro);
+
+  struct MPU60XXProxy * const thermo = mpu60xxMakeThermometer(mpu);
+  assert(thermo);
+
+  shAttach(&sh, thermo, SENSOR_TAG_THERMO);
+  sensorReset(thermo);
 
   struct Context context = {
       .serial = serial,
-      .sensor = (struct Sensor *)touch,
+      .sensors = {
+          (struct Sensor *)accel,
+          (struct Sensor *)gyro,
+          (struct Sensor *)thermo
+      },
+      .chrono = chronoTimer,
       .timer = sampleTimer,
       .led = led,
+      .enabled = {
+          true,
+          true,
+          true
+      },
       .automatic = false,
       .manual = false,
       .queued = false

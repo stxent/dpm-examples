@@ -15,6 +15,7 @@
 #include <halm/platform/lpc/serial.h>
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 /*----------------------------------------------------------------------------*/
 #define BUFFER_SIZE 64
@@ -110,14 +111,15 @@ static void onSensorData(void *argument, int tag, const void *buffer,
   assert(length == sizeof(value));
   memcpy(&value, buffer, length);
 
-  const int i = value / 16;
-  const int q = ((i > 0 ? value : -value) & 0xF) * 1000 / 16;
+  const char s = value >= 0 ? ' ' : '-';
+  const int i = abs((int)value) / 16;
+  const int q = ((value >= 0 ? value : -value) & 0xF) * 1000 / 16;
 
   size_t count;
   char text[64];
 
   pinToggle(context->led);
-  count = sprintf(text, "%i: %i.%03i\r\n", tag, i, q);
+  count = sprintf(text, "%i: %c%i.%03i\r\n", tag, s, i, q);
 
   ifWrite(context->serial, text, count);
 }
@@ -320,7 +322,7 @@ int main(void)
   while (ifSetParam(ow, IF_ONE_WIRE_FIND_NEXT, 0) == E_OK);
 
   ifSetCallback(serial, onSerialEvent, &context);
-  shSetCallback(&sh, onSensorData, &context);
+  shSetDataCallback(&sh, onSensorData, &context);
   timerSetCallback(sampleTimer, onSampleRequest, &context);
 
   /* Start queue handler and software timers */
