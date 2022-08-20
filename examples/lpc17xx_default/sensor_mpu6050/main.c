@@ -19,7 +19,7 @@
 #include <string.h>
 /*----------------------------------------------------------------------------*/
 #define BUFFER_SIZE 512
-#define INT_PIN     PIN(0, 3)
+#define INT_PIN     PIN(0, 2)
 #define LED_PIN     PIN(1, 8)
 
 enum
@@ -172,7 +172,7 @@ static void onSensorData(void *argument, int tag __attribute__((unused)),
     else
     {
       pinToggle(context->led);
-      count = sprintf(text, "%lu w: %c%i.%03i %c%i.%03i %c%i.%03i deg/s\r\n",
+      count = sprintf(text, "%lu w: %c%i.%03i %c%i.%03i %c%i.%03i rad/s\r\n",
           timestamp,
           s[0], i[0], q[0],
           s[1], i[1], q[1],
