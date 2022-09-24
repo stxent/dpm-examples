@@ -1,31 +1,30 @@
 /*
- * lpc17xx_default/display_tft_spi/main.c
- * Copyright (C) 2021 xent
+ * lpc43xx_default/display_tft/main.c
+ * Copyright (C) 2022 xent
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
 #include <dpm/displays/display.h>
-#include <dpm/displays/st7735.h>
+#include <dpm/displays/ili9325.h>
+#include <dpm/displays/s6d1121.h>
+#include <dpm/platform/lpc/sgpio_bus.h>
 #include <halm/pin.h>
 #include <halm/platform/lpc/clocking.h>
 #include <halm/platform/lpc/gptimer.h>
 #include <halm/platform/lpc/serial.h>
-#include <halm/platform/lpc/spi.h>
-#include <halm/platform/lpc/spi_dma.h>
 #include <xcore/memory.h>
 #include <assert.h>
 #include <stdio.h>
 /*----------------------------------------------------------------------------*/
-#define SPI_CHANNEL 1
-#define SPI_DMA
-
-#define DISPLAY_ST7735
+#define DISPLAY_ILI9325
+/* #define DISPLAY_S6D1121 */
 /*----------------------------------------------------------------------------*/
 #define COLORS_TOTAL      7
-#define DISPLAY_BL_PIN    PIN(1, 26)
-#define DISPLAY_CS_PIN    PIN(0, 6)
-#define DISPLAY_RESET_PIN PIN(4, 29)
-#define DISPLAY_RS_PIN    PIN(4, 28)
+#define DISPLAY_BL_PIN    PIN(PORT_8, 5)
+#define DISPLAY_CS_PIN    PIN(PORT_8, 1)
+#define DISPLAY_RESET_PIN PIN(PORT_C, 6)
+#define DISPLAY_RS_PIN    PIN(PORT_C, 7)
+#define DISPLAY_RW_PIN    PIN(PORT_C, 3)
 
 enum
 {
@@ -63,73 +62,59 @@ static uint16_t rgbTo565(struct Color);
 /*----------------------------------------------------------------------------*/
 static uint16_t arena[12288];
 /*----------------------------------------------------------------------------*/
-#ifdef SPI_DMA
-#define SPI_CLASS SpiDma
-#else
-#define SPI_CLASS Spi
-#endif
+static const struct SgpioBusConfig sgpioBusConfig = {
+    .prescaler = 4,
+    .dma = 0,
+    .priority = 0,
+    .inversion = false,
 
-#ifdef SPI_DMA
-static const struct SpiDmaConfig spiConfig[] = {
-    {
-        .rate = 25000000,
-        .sck = PIN(0, 15),
-        .miso = PIN(0, 17),
-        .mosi = PIN(0, 18),
-        .dma = {0, 1},
-        .channel = 0,
-        .mode = 0
-    }, {
-        .rate = 25000000,
-        .sck = PIN(0, 7),
-        .miso = PIN(0, 8),
-        .mosi = PIN(0, 9),
-        .dma = {3, 2},
-        .channel = 1,
-        .mode = 0
+    .pins = {
+        .clock = PIN(PORT_2, 0), /* SGPIO4 */
+        .dma = PIN(PORT_1, 16),  /* SGPIO3 */
+        .data = {
+            PIN(PORT_4, 2),
+            PIN(PORT_4, 3),
+            PIN(PORT_1, 14),
+            PIN(PORT_4, 5),
+            PIN(PORT_4, 6),
+            PIN(PORT_4, 8),
+            PIN(PORT_4, 9),
+            PIN(PORT_4, 10)
+        }
+    },
+
+    .slices = {
+        .gate = SGPIO_SLICE_P,
+        .qualifier = SGPIO_SLICE_A /* SGPIO0 */
     }
 };
-#else
-static const struct SpiConfig spiConfig[] = {
-    {
-        .rate = 25000000,
-        .sck = PIN(0, 15),
-        .miso = PIN(0, 17),
-        .mosi = PIN(0, 18),
-        .channel = 0,
-        .mode = 0
-    }, {
-        .rate = 25000000,
-        .sck = PIN(0, 7),
-        .miso = PIN(0, 8),
-        .mosi = PIN(0, 9),
-        .channel = 1,
-        .mode = 0
-    }
-};
-#endif
 /*----------------------------------------------------------------------------*/
-static struct ExternalOscConfig extOscConfig = {
-    .frequency = 12000000
+static const struct GenericClockConfig initialClockConfig = {
+    .source = CLOCK_INTERNAL
 };
 
-static struct GenericClockConfig mainClkConfig = {
+static const struct ExternalOscConfig extOscConfig = {
+    .frequency = 12000000,
+    .bypass = false
+};
+
+static const struct GenericClockConfig mainClockConfig = {
     .source = CLOCK_PLL
 };
 
-static struct PllConfig sysPllConfig = {
-    .multiplier = 25,
-    .divisor = 3,
-    .source = CLOCK_EXTERNAL
+static const struct PllConfig sysPllConfig = {
+    .source = CLOCK_EXTERNAL,
+    .divisor = 1,
+    .multiplier = 17
 };
 
 static const struct SerialConfig serialConfig = {
     .rxLength = 32,
     .txLength = 32,
     .rate = 19200,
-    .rx = PIN(0, 16),
-    .tx = PIN(0, 15),
-    .channel = 1
+    .rx = PIN(PORT_F, 11),
+    .tx = PIN(PORT_F, 10),
+    .channel = 0
 };
 
 static const struct GpTimerConfig timerConfig = {
@@ -421,15 +406,23 @@ static void parseInput(struct Context *context, char input)
   }
 }
 /*----------------------------------------------------------------------------*/
-static void setupClock()
+static void setupClock(void)
 {
+  clockEnable(MainClock, &initialClockConfig);
+
   clockEnable(ExternalOsc, &extOscConfig);
   while (!clockReady(ExternalOsc));
 
   clockEnable(SystemPll, &sysPllConfig);
   while (!clockReady(SystemPll));
 
-  clockEnable(MainClock, &mainClkConfig);
+  clockEnable(MainClock, &mainClockConfig);
+
+  clockEnable(PeriphClock, &mainClockConfig);
+  while (!clockReady(PeriphClock));
+
+  clockEnable(Usart3Clock, &mainClockConfig);
+  while (!clockReady(Usart3Clock));
 }
 /*----------------------------------------------------------------------------*/
 int main(void)
@@ -441,6 +434,9 @@ int main(void)
   const struct Pin pinBL = pinInit(DISPLAY_BL_PIN);
   pinOutput(pinBL, true);
 
+  const struct Pin pinRW = pinInit(DISPLAY_RW_PIN);
+  pinOutput(pinRW, false);
+
   struct Interface * const serial = init(Serial, &serialConfig);
   assert(serial);
   ifSetCallback(serial, onSerialEvent, &event);
@@ -449,18 +445,28 @@ int main(void)
   assert(timer);
   timerEnable(timer);
 
-  struct Interface * const spi = init(SPI_CLASS, &spiConfig[SPI_CHANNEL]);
-  assert(spi);
+  struct Interface * const memoryBus = init(SgpioBus, &sgpioBusConfig);
+  assert(memoryBus);
 
-#if defined(DISPLAY_ST7735)
-  const struct ST7735Config displayConfig = {
-      .bus = spi,
+#if defined(DISPLAY_ILI9325)
+  const struct ILI9325Config displayConfig = {
+      .bus = memoryBus,
       .cs = DISPLAY_CS_PIN,
       .reset = DISPLAY_RESET_PIN,
       .rs = DISPLAY_RS_PIN
   };
 
-  struct Interface * const display = init(ST7735, &displayConfig);
+  struct Interface * const display = init(ILI9325, &displayConfig);
+  assert(display);
+#elif defined(DISPLAY_S6D1121)
+  const struct S6D1121Config displayConfig = {
+      .bus = memoryBus,
+      .cs = DISPLAY_CS_PIN,
+      .reset = DISPLAY_RESET_PIN,
+      .rs = DISPLAY_RS_PIN
+  };
+
+  struct Interface * const display = init(S6D1121, &displayConfig);
   assert(display);
 #else
 #  error "Display type is not specified"
@@ -487,7 +493,7 @@ int main(void)
           .by = resolution.height - 1
       },
       .orientation = DISPLAY_ORIENTATION_NORMAL,
-      .color = 0,
+      .color = 40,
       .index = 0,
       .page = 0
   };

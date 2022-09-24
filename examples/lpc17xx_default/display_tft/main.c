@@ -129,9 +129,9 @@ static struct PllConfig sysPllConfig = {
 };
 
 static const struct SerialConfig serialConfig = {
-    .rate = 19200,
     .rxLength = 32,
     .txLength = 32,
+    .rate = 19200,
     .rx = PIN(0, 16),
     .tx = PIN(0, 15),
     .channel = 1
@@ -426,7 +426,7 @@ static void parseInput(struct Context *context, char input)
   }
 }
 /*----------------------------------------------------------------------------*/
-static void setupClock()
+static void setupClock(void)
 {
   clockEnable(ExternalOsc, &extOscConfig);
   while (!clockReady(ExternalOsc));
