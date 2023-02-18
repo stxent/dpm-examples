@@ -20,11 +20,11 @@
 /* #define DISPLAY_S6D1121 */
 /*----------------------------------------------------------------------------*/
 #define COLORS_TOTAL      7
-#define DISPLAY_BL_PIN    PIN(PORT_8, 5)
-#define DISPLAY_CS_PIN    PIN(PORT_8, 1)
-#define DISPLAY_RESET_PIN PIN(PORT_C, 6)
-#define DISPLAY_RS_PIN    PIN(PORT_C, 7)
-#define DISPLAY_RW_PIN    PIN(PORT_C, 3)
+#define DISPLAY_BL_PIN    PIN(PORT_2, 12)
+#define DISPLAY_CS_PIN    PIN(PORT_2, 2)
+#define DISPLAY_RESET_PIN PIN(PORT_6, 1)
+#define DISPLAY_RS_PIN    PIN(PORT_6, 6)
+#define DISPLAY_RW_PIN    PIN(PORT_2, 1)
 
 enum
 {
@@ -69,12 +69,12 @@ static const struct SgpioBusConfig sgpioBusConfig = {
     .inversion = false,
 
     .pins = {
-        .clock = PIN(PORT_2, 0), /* SGPIO4 */
+        .clock = PIN(PORT_6, 3), /* SGPIO4 */
         .dma = PIN(PORT_1, 16),  /* SGPIO3 */
         .data = {
             PIN(PORT_4, 2),
             PIN(PORT_4, 3),
-            PIN(PORT_1, 14),
+            PIN(PORT_4, 4),
             PIN(PORT_4, 5),
             PIN(PORT_4, 6),
             PIN(PORT_4, 8),
@@ -112,9 +112,9 @@ static const struct SerialConfig serialConfig = {
     .rxLength = 32,
     .txLength = 32,
     .rate = 19200,
-    .rx = PIN(PORT_F, 11),
-    .tx = PIN(PORT_F, 10),
-    .channel = 0
+    .rx = PIN(PORT_1, 14),
+    .tx = PIN(PORT_5, 6),
+    .channel = 1
 };
 
 static const struct GpTimerConfig timerConfig = {
