@@ -69,23 +69,23 @@ static const struct SgpioBusConfig sgpioBusConfig = {
     .inversion = false,
 
     .pins = {
-        .clock = PIN(PORT_6, 3), /* SGPIO4 */
-        .dma = PIN(PORT_1, 16),  /* SGPIO3 */
+        .clock = PIN(PORT_6, 3), /* SGPIO_4 */
         .data = {
-            PIN(PORT_4, 2),
-            PIN(PORT_4, 3),
-            PIN(PORT_4, 4),
-            PIN(PORT_4, 5),
-            PIN(PORT_4, 6),
-            PIN(PORT_4, 8),
-            PIN(PORT_4, 9),
-            PIN(PORT_4, 10)
-        }
+            PIN(PORT_4, 2), /* SGPIO_8 */
+            PIN(PORT_4, 3), /* SGPIO_9 */
+            PIN(PORT_4, 4), /* SGPIO_10 */
+            PIN(PORT_4, 5), /* SGPIO_11 */
+            PIN(PORT_4, 6), /* SGPIO_12 */
+            PIN(PORT_4, 8), /* SGPIO_13 */
+            PIN(PORT_4, 9), /* SGPIO_14 */
+            PIN(PORT_4, 10) /* SGPIO_15 */
+        },
+        .dma = SGPIO_3
     },
 
     .slices = {
         .gate = SGPIO_SLICE_P,
-        .qualifier = SGPIO_SLICE_A /* SGPIO0 */
+        .qualifier = SGPIO_SLICE_A /* SGPIO_0 */
     }
 };
 /*----------------------------------------------------------------------------*/
@@ -313,6 +313,7 @@ static void handleSolidFill(struct Context *context)
   for (size_t i = 0; i < (size_t)lines * context->resolution.width; ++i)
     arena[i] = color;
 
+  ifSetParam(context->display, IF_DISPLAY_WINDOW, &context->window);
   for (uint16_t row = 0; row < context->resolution.height;)
   {
     const size_t count = MIN(lines, context->resolution.height - row);

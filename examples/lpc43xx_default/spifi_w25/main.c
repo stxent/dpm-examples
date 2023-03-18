@@ -58,7 +58,7 @@ static bool memoryTestSequence(struct Interface *spifi,
   static uint32_t address = 0;
   const uint32_t position = address;
 
-  uint8_t buffer[256];
+  uint8_t buffer[1024];
   uint32_t capacity = 0;
   uint32_t chunk;
   uint32_t count;
@@ -155,7 +155,7 @@ static bool memoryTestSequenceZerocopy(struct Interface *memory)
   static uint32_t address = 1024 * 1024;
   const uint32_t position = address;
 
-  uint8_t buffer[256];
+  uint8_t buffer[1024];
   uint32_t capacity = 0;
   uint32_t chunk = 0;
   uint32_t count;
