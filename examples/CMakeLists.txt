@@ -1,9 +1,9 @@
 # Copyright (C) 2022 xent
 # Project is distributed under the terms of the GNU General Public License v3.0
 
-project(examples C)
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.21)
 cmake_policy(SET CMP0069 NEW)
+project(examples C)
 
 option(USE_DFU "Use memory layout for a bootloader." OFF)
 option(USE_LTO "Enable Link Time Optimization." OFF)
@@ -13,10 +13,12 @@ set(PATH_HALM "${PROJECT_SOURCE_DIR}/../halm" CACHE STRING "Path to the HALM lib
 set(PATH_DPM "${PROJECT_SOURCE_DIR}/../dpm" CACHE STRING "Path to the DPM library.")
 
 # Default compiler flags
-set(FLAGS_DEFAULT "-fdata-sections -ffunction-sections -Wall -Wextra -Wshadow -pedantic")
-set(CMAKE_C_STANDARD 11)
+set(FLAGS_DEFAULT "-pedantic -Wall -Wextra -Wshadow")
+set(FLAGS_PROJECT "-fdata-sections -ffunction-sections")
+set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_EXTENSIONS OFF)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAGS_DEFAULT} ${FLAGS_CPU}")
+set(CMAKE_C_FLAGS_INIT "${CMAKE_C_FLAGS_INIT} ${FLAGS_DEFAULT}")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS_INIT} ${FLAGS_PROJECT} ${FLAGS_CPU}")
 set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
 
 if(USE_LTO)

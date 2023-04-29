@@ -442,15 +442,15 @@ int main(void)
   pinOutput(pinBL, true);
 
   struct Interface * const serial = init(Serial, &serialConfig);
-  assert(serial);
+  assert(serial != NULL);
   ifSetCallback(serial, onSerialEvent, &event);
 
   struct Timer * const timer = init(GpTimer, &timerConfig);
-  assert(timer);
+  assert(timer != NULL);
   timerEnable(timer);
 
   struct Interface * const spi = init(SPI_CLASS, &spiConfig[SPI_CHANNEL]);
-  assert(spi);
+  assert(spi != NULL);
 
 #if defined(DISPLAY_ST7735)
   const struct ST7735Config displayConfig = {
@@ -461,7 +461,7 @@ int main(void)
   };
 
   struct Interface * const display = init(ST7735, &displayConfig);
-  assert(display);
+  assert(display != NULL);
 #else
 #  error "Display type is not specified"
 #endif

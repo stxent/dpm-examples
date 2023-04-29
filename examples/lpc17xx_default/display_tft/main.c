@@ -94,7 +94,7 @@ static const struct MemoryBusDmaConfig busConfig = {
     }
 };
 #else
-static struct GpioBus *gpioBus = 0;
+static struct GpioBus *gpioBus = NULL;
 
 static const struct FastGpioBusConfig gpioBusConfig = {
     .pins = (const PinNumber []){
@@ -450,16 +450,16 @@ int main(void)
   pinOutput(pinRW, false);
 
   struct Interface * const serial = init(Serial, &serialConfig);
-  assert(serial);
+  assert(serial != NULL);
   ifSetCallback(serial, onSerialEvent, &event);
 
   struct Timer * const timer = init(GpTimer, &timerConfig);
-  assert(timer);
+  assert(timer != NULL);
   timerEnable(timer);
 
 #ifdef DISPLAY_DMA
   struct Interface * const memoryBus = init(MemoryBusDma, &busConfig);
-  assert(memoryBus);
+  assert(memoryBus != NULL);
 #else
   pinInput(pinInit(PIN(1, 19)));
   pinOutput(pinInit(PIN(1, 22)), true);
@@ -467,11 +467,11 @@ int main(void)
   pinOutput(pinInit(PIN(1, 29)), false);
 
   gpioBus = init(FastGpioBus, &gpioBusConfig);
-  assert(gpioBus);
+  assert(gpioBus != NULL);
 
   memoryBusConfig.bus = gpioBus;
   struct Interface * const memoryBus = init(MemoryBusGpio, &memoryBusConfig);
-  assert(memoryBus);
+  assert(memoryBus != NULL);
 #endif
 
 #if defined(DISPLAY_ILI9325)
@@ -483,7 +483,7 @@ int main(void)
   };
 
   struct Interface * const display = init(ILI9325, &displayConfig);
-  assert(display);
+  assert(display != NULL);
 #elif defined(DISPLAY_S6D1121)
   const struct S6D1121Config displayConfig = {
       .bus = memoryBus,
@@ -493,7 +493,7 @@ int main(void)
   };
 
   struct Interface * const display = init(S6D1121, &displayConfig);
-  assert(display);
+  assert(display != NULL);
 #else
 #  error "Display type is not specified"
 #endif

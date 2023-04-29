@@ -162,7 +162,7 @@ static bool memoryTestSequenceZerocopy(struct Interface *memory)
   enum Result res;
   bool event = false;
 
-  ifSetParam(memory, IF_ZEROCOPY, 0);
+  ifSetParam(memory, IF_ZEROCOPY, NULL);
   ifSetCallback(memory, onMemoryEvent, &event);
 
   /* Read geometry */
@@ -193,7 +193,7 @@ static bool memoryTestSequenceZerocopy(struct Interface *memory)
         barrier();
 
       event = false;
-      res = ifGetParam(memory, IF_STATUS, 0);
+      res = ifGetParam(memory, IF_STATUS, NULL);
     }
   }
 
@@ -210,7 +210,7 @@ static bool memoryTestSequenceZerocopy(struct Interface *memory)
         barrier();
 
       event = false;
-      res = ifGetParam(memory, IF_STATUS, 0);
+      res = ifGetParam(memory, IF_STATUS, NULL);
 
       if (res == E_OK)
       {
@@ -244,7 +244,7 @@ static bool memoryTestSequenceZerocopy(struct Interface *memory)
         barrier();
 
       event = false;
-      res = ifGetParam(memory, IF_STATUS, 0);
+      res = ifGetParam(memory, IF_STATUS, NULL);
     }
     else
       res = E_INTERFACE;
@@ -263,7 +263,7 @@ static bool memoryTestSequenceZerocopy(struct Interface *memory)
         barrier();
 
       event = false;
-      res = ifGetParam(memory, IF_STATUS, 0);
+      res = ifGetParam(memory, IF_STATUS, NULL);
 
       if (res == E_OK)
       {
@@ -281,8 +281,8 @@ static bool memoryTestSequenceZerocopy(struct Interface *memory)
       res = E_INTERFACE;
   }
 
-  ifSetCallback(memory, 0, 0);
-  ifSetParam(memory, IF_BLOCKING, 0);
+  ifSetCallback(memory, NULL, NULL);
+  ifSetParam(memory, IF_BLOCKING, NULL);
   return res == E_OK;
 }
 /*----------------------------------------------------------------------------*/
@@ -321,10 +321,10 @@ int main(void)
   pinOutput(zerocopyLed, false);
 
   struct Timer * const timer = init(GpTimer, &timerConfig);
-  assert(timer);
+  assert(timer != NULL);
 
   struct Interface * const spifi = init(Spifi, &spifiConfig);
-  assert(spifi);
+  assert(spifi != NULL);
 
   const struct W25SPIMConfig w25Config = {
       .spim = spifi,
@@ -333,7 +333,7 @@ int main(void)
       .qpi = true
   };
   struct Interface * const memory = init(W25SPIM, &w25Config);
-  assert(memory);
+  assert(memory != NULL);
 
   timerSetOverflow(timer, timerGetFrequency(timer) * 5);
   timerSetCallback(timer, onTimerOverflow, &event);

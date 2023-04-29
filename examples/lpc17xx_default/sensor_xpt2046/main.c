@@ -210,20 +210,20 @@ int main(void)
   pinOutput(led, false);
 
   struct Interrupt * const event = init(PinInt, &eventConfig);
-  assert(event);
+  assert(event != NULL);
 
   struct Timer * const sampleTimer = init(GpTimer, &sampleTimerConfig);
-  assert(sampleTimer);
+  assert(sampleTimer != NULL);
   timerSetOverflow(sampleTimer, 500000);
 
   struct Timer * const sensorTimer = init(GpTimer, &sensorTimerConfig);
-  assert(sensorTimer);
+  assert(sensorTimer != NULL);
 
   struct Interface * const serial = init(Serial, &serialConfig);
-  assert(serial);
+  assert(serial != NULL);
 
   struct Interface * const spi = init(SpiDma, &spiConfig[SPI_CHANNEL]);
-  assert(spi);
+  assert(spi != NULL);
 
   const struct XPT2046Config touchConfig = {
       .bus = spi,
@@ -236,7 +236,7 @@ int main(void)
       .y = 320
   };
   struct XPT2046 * const touch = init(XPT2046, &touchConfig);
-  assert(touch);
+  assert(touch != NULL);
   xpt2046ResetCalibration(touch);
 
   /* Initialize Work Queue */

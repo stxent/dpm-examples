@@ -439,15 +439,15 @@ int main(void)
   pinOutput(pinRW, false);
 
   struct Interface * const serial = init(Serial, &serialConfig);
-  assert(serial);
+  assert(serial != NULL);
   ifSetCallback(serial, onSerialEvent, &event);
 
   struct Timer * const timer = init(GpTimer, &timerConfig);
-  assert(timer);
+  assert(timer != NULL);
   timerEnable(timer);
 
   struct Interface * const memoryBus = init(SgpioBus, &sgpioBusConfig);
-  assert(memoryBus);
+  assert(memoryBus != NULL);
 
 #if defined(DISPLAY_ILI9325)
   const struct ILI9325Config displayConfig = {
@@ -458,7 +458,7 @@ int main(void)
   };
 
   struct Interface * const display = init(ILI9325, &displayConfig);
-  assert(display);
+  assert(display != NULL);
 #elif defined(DISPLAY_S6D1121)
   const struct S6D1121Config displayConfig = {
       .bus = memoryBus,
@@ -468,7 +468,7 @@ int main(void)
   };
 
   struct Interface * const display = init(S6D1121, &displayConfig);
-  assert(display);
+  assert(display != NULL);
 #else
 #  error "Display type is not specified"
 #endif

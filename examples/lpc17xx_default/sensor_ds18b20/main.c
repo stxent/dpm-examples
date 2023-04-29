@@ -226,19 +226,19 @@ int main(void)
   pinOutput(pwr, false);
 
   struct Interface * const ow = init(OneWireSsp, &owConfig);
-  assert(ow);
+  assert(ow != NULL);
 
   struct Interface * const serial = init(Serial, &serialConfig);
-  assert(serial);
+  assert(serial != NULL);
 
   struct Timer * const sampleTimer = init(GpTimer, &sampleTimerConfig);
-  assert(sampleTimer);
+  assert(sampleTimer != NULL);
   timerSetOverflow(sampleTimer, 1000000);
 
   /* Initialize software timer factory */
 
   struct Timer * const sensorTimer = init(GpTimer, &sensorTimerConfig);
-  assert(sensorTimer);
+  assert(sensorTimer != NULL);
   timerSetOverflow(sensorTimer, 1000);
 
   const struct SoftwareTimerFactoryConfig factoryConfig = {
@@ -246,12 +246,12 @@ int main(void)
   };
   struct SoftwareTimerFactory * const factory =
       init(SoftwareTimerFactory, &factoryConfig);
-  assert(factory);
+  assert(factory != NULL);
 
   /* Initialize Work Queue */
 
   WQ_DEFAULT = init(WorkQueue, &workQueueConfig);
-  assert(WQ_DEFAULT);
+  assert(WQ_DEFAULT != NULL);
 
   struct SensorHandler sh;
   shInit(&sh, MAX_SENSORS, WQ_DEFAULT);
@@ -271,7 +271,7 @@ int main(void)
   bool event = false;
 
   ifSetCallback(ow, onSearchCompleted, &event);
-  ifSetParam(ow, IF_ONE_WIRE_START_SEARCH, 0);
+  ifSetParam(ow, IF_ONE_WIRE_START_SEARCH, NULL);
 
   do
   {
@@ -279,7 +279,7 @@ int main(void)
       barrier();
     event = false;
 
-    if (ifGetParam(ow, IF_STATUS, 0) != E_OK)
+    if (ifGetParam(ow, IF_STATUS, NULL) != E_OK)
       break;
 
     uint64_t address;
@@ -292,10 +292,10 @@ int main(void)
           .address = address,
           .resolution = DS18B20_RESOLUTION_DEFAULT
       };
-      assert(thermoConfig.timer);
+      assert(thermoConfig.timer != NULL);
 
       struct DS18B20 * const thermo = init(DS18B20, &thermoConfig);
-      assert(thermo);
+      assert(thermo != NULL);
 
       context.sensors[tag] = (struct Sensor *)thermo;
       shAttach(&sh, thermo, (int)tag);
@@ -319,7 +319,7 @@ int main(void)
       ++tag;
     }
   }
-  while (ifSetParam(ow, IF_ONE_WIRE_FIND_NEXT, 0) == E_OK);
+  while (ifSetParam(ow, IF_ONE_WIRE_FIND_NEXT, NULL) == E_OK);
 
   ifSetCallback(serial, onSerialEvent, &context);
   shSetDataCallback(&sh, onSensorData, &context);

@@ -300,24 +300,24 @@ int main(void)
   pinOutput(led, false);
 
   struct Interrupt * const event = init(PinInt, &eventConfig);
-  assert(event);
+  assert(event != NULL);
 
   struct Timer * const chronoTimer = init(GpTimer, &chronoTimerConfig);
-  assert(chronoTimer);
+  assert(chronoTimer != NULL);
   timerEnable(chronoTimer);
 
   struct Timer * const sampleTimer = init(GpTimer, &sampleTimerConfig);
-  assert(sampleTimer);
+  assert(sampleTimer != NULL);
   timerSetOverflow(sampleTimer, 500000);
 
   struct Timer * const sensorTimer = init(GpTimer, &sensorTimerConfig);
-  assert(sensorTimer);
+  assert(sensorTimer != NULL);
 
   struct Interface * const serial = init(Serial, &serialConfig);
-  assert(serial);
+  assert(serial != NULL);
 
   struct Interface * const i2c = init(I2C, &i2cConfig);
-  assert(i2c);
+  assert(i2c != NULL);
 
   const struct MPU60XXConfig mpuConfig = {
       .bus = i2c,
@@ -331,29 +331,29 @@ int main(void)
       .gyroScale = MPU60XX_GYRO_2000
   };
   struct MPU60XX * const mpu = init(MPU60XX, &mpuConfig);
-  assert(mpu);
+  assert(mpu != NULL);
 
   /* Initialize Work Queue */
   WQ_DEFAULT = init(WorkQueue, &workQueueConfig);
-  assert(WQ_DEFAULT);
+  assert(WQ_DEFAULT != NULL);
 
   struct SensorHandler sh;
   shInit(&sh, 4, WQ_DEFAULT);
 
   struct MPU60XXProxy * const accel = mpu60xxMakeAccelerometer(mpu);
-  assert(accel);
+  assert(accel != NULL);
 
   shAttach(&sh, accel, SENSOR_TAG_ACCEL);
   sensorReset(accel);
 
   struct MPU60XXProxy * const gyro = mpu60xxMakeGyroscope(mpu);
-  assert(gyro);
+  assert(gyro != NULL);
 
   shAttach(&sh, gyro, SENSOR_TAG_GYRO);
   sensorReset(gyro);
 
   struct MPU60XXProxy * const thermo = mpu60xxMakeThermometer(mpu);
-  assert(thermo);
+  assert(thermo != NULL);
 
   shAttach(&sh, thermo, SENSOR_TAG_THERMO);
   sensorReset(thermo);
