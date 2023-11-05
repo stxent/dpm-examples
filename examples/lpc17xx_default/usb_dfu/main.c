@@ -6,6 +6,7 @@
 
 #include <dpm/usb/dfu_bridge.h>
 #include <halm/core/cortex/nvic.h>
+#include <halm/generic/flash.h>
 #include <halm/generic/work_queue.h>
 #include <halm/pin.h>
 #include <halm/platform/lpc/backup_domain.h>
@@ -27,21 +28,6 @@ static bool isDfuRequested(void);
 static void onResetRequested(void);
 static void setupClock(void);
 static void startFirmware(void);
-/*----------------------------------------------------------------------------*/
-static const struct FlashGeometry geometry[] = {
-    {
-        .count = 16,
-        .size = 4096,
-        .time = 100
-    }, {
-        .count = 14,
-        .size = 32768,
-        .time = 100
-    }, {
-        /* End of the list */
-        0, 0, 0
-    }
-};
 /*----------------------------------------------------------------------------*/
 static struct GpTimerConfig timerConfig = {
     .frequency = 1000,
@@ -136,8 +122,11 @@ int main(void)
 
   setupClock();
 
+  struct FlashGeometry layout[2];
   struct Interface * const flash = init(Flash, NULL);
   assert(flash != NULL);
+  const size_t regions = flashGetGeometry(flash, layout, ARRAY_SIZE(layout));
+  assert(regions != 0);
 
   struct Timer * const timer = init(GpTimer, &timerConfig);
   assert(timer != NULL);
@@ -154,11 +143,12 @@ int main(void)
   assert(dfu != NULL);
 
   const struct DfuBridgeConfig bridgeConfig = {
-      .geometry = geometry,
-      .flash = flash,
       .device = dfu,
-      .offset = FIRMWARE_OFFSET,
       .reset = onResetRequested,
+      .flash = flash,
+      .offset = FIRMWARE_OFFSET,
+      .geometry = layout,
+      .regions = regions,
       .writeonly = false
   };
   struct DfuBridge * const bridge = init(DfuBridge, &bridgeConfig);

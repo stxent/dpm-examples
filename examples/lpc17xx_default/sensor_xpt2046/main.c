@@ -44,7 +44,7 @@ static void setupClock(void);
 /*----------------------------------------------------------------------------*/
 static const struct PinIntConfig eventConfig = {
     .pin = EV_PIN,
-    .event = PIN_FALLING,
+    .event = INPUT_FALLING,
     .pull = PIN_PULLUP
 };
 

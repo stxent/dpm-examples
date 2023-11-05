@@ -14,6 +14,7 @@
 /*----------------------------------------------------------------------------*/
 #define BOARD_LED_0 PIN(PORT_5, 7)
 #define BOARD_LED_1 PIN(PORT_5, 5)
+#define BUFFER_SIZE 2048
 /*----------------------------------------------------------------------------*/
 static bool memoryTestSequence(struct Interface *, struct Interface *);
 static bool memoryTestSequenceZerocopy(struct Interface *);
@@ -30,13 +31,13 @@ static const struct SpifiConfig spifiConfig = {
     .sck = PIN(PORT_3, 3),
     .channel = 0,
     .mode = 0,
-    .dma = 0
+    .dma = 0,
+    .large = false
 };
 
 static const struct GpTimerConfig timerConfig = {
     .channel = 0,
-    .frequency = 1000000,
-    .event = 0
+    .frequency = 1000000
 };
 /*----------------------------------------------------------------------------*/
 static const struct GenericClockConfig initialClockConfig = {
@@ -56,9 +57,10 @@ static bool memoryTestSequence(struct Interface *spifi,
     struct Interface *memory)
 {
   static uint32_t address = 0;
-  const uint32_t position = address;
+  static bool useBlockErase = false;
 
-  uint8_t buffer[1024];
+  const uint32_t position = address;
+  uint8_t buffer[BUFFER_SIZE];
   uint32_t capacity = 0;
   uint32_t chunk;
   uint32_t count;
@@ -86,15 +88,28 @@ static bool memoryTestSequence(struct Interface *spifi,
 
   /* Erase */
 
-  res = ifSetParam(memory, IF_FLASH_ERASE_BLOCK, &position);
-  if (res != E_OK)
-    return false;
+  if (useBlockErase)
+  {
+    useBlockErase = false;
+    res = ifSetParam(memory, IF_FLASH_ERASE_BLOCK, &position);
+    if (res != E_OK)
+      return false;
+  }
+  else
+  {
+    useBlockErase = true;
+    res = ifSetParam(memory, IF_FLASH_ERASE_SECTOR, &position);
+    if (res != E_OK)
+      return false;
+  }
 
   /* Verify erase */
 
   res = ifSetParam(memory, IF_POSITION, &position);
   if (res != E_OK)
     return false;
+
+  memset(buffer, 0, sizeof(buffer));
   count = ifRead(memory, buffer, sizeof(buffer));
   if (count != sizeof(buffer))
     return false;
@@ -113,6 +128,7 @@ static bool memoryTestSequence(struct Interface *spifi,
   res = ifSetParam(memory, IF_POSITION, &position);
   if (res != E_OK)
     return false;
+
   count = ifWrite(memory, buffer, sizeof(buffer));
   if (count != sizeof(buffer))
     return false;
@@ -122,6 +138,8 @@ static bool memoryTestSequence(struct Interface *spifi,
   res = ifSetParam(memory, IF_POSITION, &position);
   if (res != E_OK)
     return false;
+
+  memset(buffer, 0, sizeof(buffer));
   count = ifRead(memory, buffer, sizeof(buffer));
   if (count != sizeof(buffer))
     return false;
@@ -134,7 +152,7 @@ static bool memoryTestSequence(struct Interface *spifi,
 
   /* Verify memory mapping mode */
 
-  const uint8_t * const region = spifiAddress((struct Spifi *)spifi);
+  const uint8_t * const region = spifiGetAddress((struct Spifi *)spifi);
 
   w25MemoryMappingEnable((struct W25SPIM *)memory);
   for (size_t i = 0; i < sizeof(buffer); ++i)
@@ -153,9 +171,10 @@ static bool memoryTestSequence(struct Interface *spifi,
 static bool memoryTestSequenceZerocopy(struct Interface *memory)
 {
   static uint32_t address = 1024 * 1024;
-  const uint32_t position = address;
+  static bool useBlockErase = false;
 
-  uint8_t buffer[1024];
+  const uint32_t position = address;
+  uint8_t buffer[BUFFER_SIZE];
   uint32_t capacity = 0;
   uint32_t chunk = 0;
   uint32_t count;
@@ -186,8 +205,13 @@ static bool memoryTestSequenceZerocopy(struct Interface *memory)
 
   if (res == E_OK)
   {
-    res = ifSetParam(memory, IF_FLASH_ERASE_BLOCK, &position);
-    if (res == E_OK)
+    if (useBlockErase)
+      res = ifSetParam(memory, IF_FLASH_ERASE_BLOCK, &position);
+    else
+      res = ifSetParam(memory, IF_FLASH_ERASE_SECTOR, &position);
+    useBlockErase = !useBlockErase;
+
+    if (res == E_OK || res == E_BUSY)
     {
       while (!event)
         barrier();
@@ -203,7 +227,9 @@ static bool memoryTestSequenceZerocopy(struct Interface *memory)
     res = ifSetParam(memory, IF_POSITION, &position);
   if (res == E_OK)
   {
+    memset(buffer, 0, sizeof(buffer));
     count = ifRead(memory, buffer, sizeof(buffer));
+
     if (count == sizeof(buffer))
     {
       while (!event)
@@ -256,7 +282,9 @@ static bool memoryTestSequenceZerocopy(struct Interface *memory)
     res = ifSetParam(memory, IF_POSITION, &position);
   if (res == E_OK)
   {
+    memset(buffer, 0, sizeof(buffer));
     count = ifRead(memory, buffer, sizeof(buffer));
+
     if (count == sizeof(buffer))
     {
       while (!event)

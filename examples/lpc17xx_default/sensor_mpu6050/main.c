@@ -51,7 +51,7 @@ static void setupClock(void);
 /*----------------------------------------------------------------------------*/
 static const struct PinIntConfig eventConfig = {
     .pin = INT_PIN,
-    .event = PIN_RISING,
+    .event = INPUT_RISING,
     .pull = PIN_PULLDOWN
 };
 

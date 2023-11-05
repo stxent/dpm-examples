@@ -6,7 +6,7 @@
 
 #include <dpm/sensors/ds18b20.h>
 #include <dpm/sensors/sensor_handler.h>
-#include <halm/generic/software_timer.h>
+#include <halm/generic/timer_factory.h>
 #include <halm/generic/work_queue.h>
 #include <halm/pin.h>
 #include <halm/platform/lpc/clocking.h>
@@ -241,11 +241,10 @@ int main(void)
   assert(sensorTimer != NULL);
   timerSetOverflow(sensorTimer, 1000);
 
-  const struct SoftwareTimerFactoryConfig factoryConfig = {
+  const struct TimerFactoryConfig factoryConfig = {
       .timer = sensorTimer
   };
-  struct SoftwareTimerFactory * const factory =
-      init(SoftwareTimerFactory, &factoryConfig);
+  struct TimerFactory * const factory = init(TimerFactory, &factoryConfig);
   assert(factory != NULL);
 
   /* Initialize Work Queue */
@@ -288,7 +287,7 @@ int main(void)
     {
       const struct DS18B20Config thermoConfig = {
           .bus = ow,
-          .timer = softwareTimerCreate(factory),
+          .timer = timerFactoryCreate(factory),
           .address = address,
           .resolution = DS18B20_RESOLUTION_DEFAULT
       };
