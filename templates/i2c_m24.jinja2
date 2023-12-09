@@ -1,0 +1,218 @@
+/*
+ * {{group.name}}/i2c_m24/main.c
+ * Automatically generated file
+ */
+
+#include "board.h"
+#include <dpm/memory/m24.h>
+#include <halm/timer.h>
+#include <xcore/memory.h>
+#include <assert.h>
+#include <string.h>
+/*----------------------------------------------------------------------------*/
+static bool memoryTestSequence(struct Interface *);
+static bool memoryTestSequenceZerocopy(struct Interface *);
+static void onMemoryEvent(void *);
+static void onTimerOverflow(void *);
+/*----------------------------------------------------------------------------*/
+static bool memoryTestSequence(struct Interface *memory)
+{
+  static uint32_t address = 0;
+  const uint32_t position = address;
+
+  uint8_t buffer[128];
+  uint32_t capacity = 0;
+  uint32_t count;
+  enum Result res;
+
+  /* Read geometry */
+
+  res = ifGetParam(memory, IF_SIZE, &capacity);
+  if (res != E_OK || capacity == 0)
+    return false;
+
+  address += sizeof(buffer);
+  if (address >= capacity)
+    address = 0;
+
+  /* Program */
+
+  for (size_t i = 0; i < sizeof(buffer); ++i)
+    buffer[i] = (uint8_t)i;
+
+  res = ifSetParam(memory, IF_POSITION, &position);
+  if (res != E_OK)
+    return false;
+
+  count = ifWrite(memory, buffer, sizeof(buffer));
+  if (count != sizeof(buffer))
+    return false;
+
+  /* Verify program */
+
+  res = ifSetParam(memory, IF_POSITION, &position);
+  if (res != E_OK)
+    return false;
+
+  memset(buffer, 0, sizeof(buffer));
+  count = ifRead(memory, buffer, sizeof(buffer));
+  if (count != sizeof(buffer))
+    return false;
+
+  for (size_t i = 0; i < sizeof(buffer); ++i)
+  {
+    if (buffer[i] != (uint8_t)i)
+      return false;
+  }
+
+  return true;
+}
+/*----------------------------------------------------------------------------*/
+static bool memoryTestSequenceZerocopy(struct Interface *memory)
+{
+  static uint32_t address = 0;
+  const uint32_t position = address;
+
+  uint8_t buffer[128];
+  uint32_t capacity = 0;
+  uint32_t count;
+  enum Result res;
+  bool event = false;
+
+  ifSetParam(memory, IF_ZEROCOPY, NULL);
+  ifSetCallback(memory, onMemoryEvent, &event);
+
+  /* Read geometry */
+
+  res = ifGetParam(memory, IF_SIZE, &capacity);
+  if (res == E_OK && capacity == 0)
+    res = E_MEMORY;
+
+  address += sizeof(buffer);
+  if (address >= capacity)
+    address = 0;
+
+  /* Program */
+
+  if (res == E_OK)
+    res = ifSetParam(memory, IF_POSITION, &position);
+  if (res == E_OK)
+  {
+    for (size_t i = 0; i < sizeof(buffer); ++i)
+      buffer[i] = UINT8_MAX - (uint8_t)i;
+
+    count = ifWrite(memory, buffer, sizeof(buffer));
+    if (count == sizeof(buffer))
+    {
+      while (!event)
+        barrier();
+
+      event = false;
+      res = ifGetParam(memory, IF_STATUS, NULL);
+    }
+    else
+      res = E_INTERFACE;
+  }
+
+  /* Verify program */
+
+  if (res == E_OK)
+    res = ifSetParam(memory, IF_POSITION, &position);
+  if (res == E_OK)
+  {
+    memset(buffer, 0, sizeof(buffer));
+    count = ifRead(memory, buffer, sizeof(buffer));
+
+    if (count == sizeof(buffer))
+    {
+      while (!event)
+        barrier();
+
+      event = false;
+      res = ifGetParam(memory, IF_STATUS, NULL);
+
+      if (res == E_OK)
+      {
+        for (size_t i = 0; i < sizeof(buffer); ++i)
+        {
+          if (buffer[i] != UINT8_MAX - (uint8_t)i)
+          {
+            res = E_VALUE;
+            break;
+          }
+        }
+      }
+    }
+    else
+      res = E_INTERFACE;
+  }
+
+  ifSetCallback(memory, NULL, NULL);
+  ifSetParam(memory, IF_BLOCKING, NULL);
+  return res == E_OK;
+}
+/*----------------------------------------------------------------------------*/
+static void onMemoryEvent(void *argument)
+{
+  *(bool *)argument = true;
+}
+/*----------------------------------------------------------------------------*/
+static void onTimerOverflow(void *argument)
+{
+  *(bool *)argument = true;
+}
+/*----------------------------------------------------------------------------*/
+int main(void)
+{
+  bool event = false;
+
+  boardSetupClockPll();
+  boardSetupLowPriorityWQ();
+
+  const struct Pin blockingLed = pinInit(BOARD_LED_0);
+  pinOutput(blockingLed, BOARD_LED_INV);
+  const struct Pin zerocopyLed = pinInit(BOARD_LED_1);
+  pinOutput(zerocopyLed, BOARD_LED_INV);
+
+  struct Timer * const eventTimer = boardSetupTimer();
+  struct Timer * const memoryTimer = boardSetupTimerAux0();
+  struct Interface * const i2c = boardSetupI2C();
+
+  const struct M24Config m24Config = {
+      .bus = i2c,
+      .timer = memoryTimer,
+      .address = 0x50,
+      .chipSize = 65536,
+      .pageSize = 32,
+      .rate = 0,
+      .blocks = 1
+  };
+  struct Interface * const memory = init(M24, &m24Config);
+  assert(memory != NULL);
+  m24SetUpdateWorkQueue(memory, WQ_LP);
+
+  /* Start Work Queue for driver event processing */
+  wqStart(WQ_LP);
+
+  /* Configure the timer for read/write events */
+  timerSetOverflow(eventTimer, timerGetFrequency(eventTimer) * 5);
+  timerSetCallback(eventTimer, onTimerOverflow, &event);
+  timerEnable(eventTimer);
+
+  while (1)
+  {
+    while (!event)
+      barrier();
+    event = false;
+
+    pinWrite(blockingLed, !BOARD_LED_INV);
+    if (memoryTestSequence(memory))
+      pinWrite(blockingLed, BOARD_LED_INV);
+
+    pinWrite(zerocopyLed, !BOARD_LED_INV);
+    if (memoryTestSequenceZerocopy(memory))
+      pinWrite(zerocopyLed, BOARD_LED_INV);
+  }
+
+  return 0;
+}

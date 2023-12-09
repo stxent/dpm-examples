@@ -1,0 +1,236 @@
+/*
+ * {{group.name}}/display_tft/main.c
+ * Automatically generated file
+ */
+
+#include "board.h"
+#include "display_helpers.h"
+#include <dpm/displays/display.h>
+#include <dpm/displays/ili9325.h>
+#include <dpm/displays/s6d1121.h>
+#include <halm/timer.h>
+#include <assert.h>
+#include <stdio.h>
+/*----------------------------------------------------------------------------*/
+enum DisplayType
+{
+  DISPLAY_ILI9325,
+  DISPLAY_S6D1121
+} __attribute__((packed));
+/*----------------------------------------------------------------------------*/
+enum
+{
+  PAGE_SOLID,
+  PAGE_GRADIENT,
+  PAGE_LINES,
+  PAGE_CHESS,
+  PAGE_MARKER,
+  PAGE_END
+};
+
+struct Context
+{
+  struct Interface *display;
+  struct Interface *serial;
+  struct Timer *timer;
+
+  enum DisplayOrientation orientation;
+  unsigned int color;
+  unsigned int index;
+  unsigned int page;
+};
+/*----------------------------------------------------------------------------*/
+static void handleColorChange(struct Context *);
+static void handleOrientationChange(struct Context *);
+static void handlePageChange(struct Context *);
+static struct Interface *makeDisplay(struct Interface *, enum DisplayType);
+static void onSerialEvent(void *);
+static void parseInput(struct Context *, char);
+/*----------------------------------------------------------------------------*/
+static uint16_t arena[12288];
+/*----------------------------------------------------------------------------*/
+static void handleColorChange(struct Context *context)
+{
+  ++context->color;
+  handlePageChange(context);
+}
+/*----------------------------------------------------------------------------*/
+static void handleOrientationChange(struct Context *context)
+{
+  if (++context->orientation == DISPLAY_ORIENTATION_END)
+    context->orientation = DISPLAY_ORIENTATION_NORMAL;
+
+  const uint32_t orientation = (uint32_t)context->orientation;
+  ifSetParam(context->display, IF_DISPLAY_ORIENTATION, &orientation);
+
+  handlePageChange(context);
+}
+/*----------------------------------------------------------------------------*/
+static void handlePageChange(struct Context *context)
+{
+  const uint32_t start = timerGetValue(context->timer);
+
+  switch (context->page)
+  {
+    case 0:
+      handleSolidFill(context->display, context->index, context->color,
+          arena, ARRAY_SIZE(arena));
+      break;
+
+    case 1:
+      handleGradientFill(context->display, context->index, context->color,
+          arena, ARRAY_SIZE(arena));
+      break;
+
+    case 2:
+      handleLineFill(context->display, context->index, context->color,
+          arena, ARRAY_SIZE(arena));
+      break;
+
+    case 3:
+      handleChessFill(context->display, context->index, context->color,
+          arena, ARRAY_SIZE(arena));
+      break;
+
+    case 4:
+      handleMarkerFill(context->display, context->index, context->color,
+          arena, ARRAY_SIZE(arena));
+      break;
+
+    default:
+      break;
+  }
+
+  const uint32_t passed = timerGetValue(context->timer) - start;
+  char text[24];
+  const size_t length = sprintf(text, "%lu us\r\n", (unsigned long)passed);
+
+  ifWrite(context->serial, text, length);
+}
+/*----------------------------------------------------------------------------*/
+static struct Interface *makeDisplay(struct Interface *bus,
+    enum DisplayType type)
+{
+  struct Interface *interface = NULL;
+
+  switch (type)
+  {
+    case DISPLAY_ILI9325:
+    {
+      const struct ILI9325Config config = {
+          .bus = bus,
+          .cs = BOARD_DISPLAY_CS,
+          .reset = BOARD_DISPLAY_RESET,
+          .rs = BOARD_DISPLAY_RS
+      };
+
+      interface = init(ILI9325, &config);
+      break;
+    }
+
+    case DISPLAY_S6D1121:
+    {
+      const struct S6D1121Config config = {
+          .bus = bus,
+          .cs = BOARD_DISPLAY_CS,
+          .reset = BOARD_DISPLAY_RESET,
+          .rs = BOARD_DISPLAY_RS
+      };
+
+      interface = init(S6D1121, &config);
+      break;
+    }
+
+    default:
+      break;
+  }
+
+  assert(interface != NULL);
+  return interface;
+}
+/*----------------------------------------------------------------------------*/
+static void onSerialEvent(void *argument)
+{
+  *(bool *)argument = true;
+}
+/*----------------------------------------------------------------------------*/
+static void parseInput(struct Context *context, char input)
+{
+  if (input >= '1' && input <= '5')
+  {
+    const unsigned int page = (int)(input - '1');
+
+    if (context->page != page)
+      context->index = 0;
+    else
+      ++context->index;
+    context->page = page;
+
+    handlePageChange(context);
+  }
+  else if (input == 'c')
+  {
+    handleColorChange(context);
+  }
+  else if (input == 'r')
+  {
+    handleOrientationChange(context);
+  }
+}
+/*----------------------------------------------------------------------------*/
+int main(void)
+{
+  static const enum DisplayType DISPLAY_TYPE = DISPLAY_ILI9325;
+  static const uint32_t SERIAL_RATE = 500000;
+
+  bool event = false;
+
+  boardSetupClockPll();
+
+  const struct Pin pinBL = pinInit(BOARD_DISPLAY_BL);
+  pinOutput(pinBL, true);
+
+  const struct Pin pinRW = pinInit(BOARD_DISPLAY_RW);
+  pinOutput(pinRW, false);
+
+  struct Interface * const serial = boardSetupSerial();
+  ifSetCallback(serial, onSerialEvent, &event);
+  ifSetParam(serial, IF_RATE, &SERIAL_RATE);
+
+  struct Timer * const timer = boardSetupTimer();
+  timerEnable(timer);
+
+  struct Interface * const bus = boardSetupDisplayBus();
+  struct Interface * const display = makeDisplay(bus, DISPLAY_TYPE);
+
+  ifSetParam(display, IF_DISPLAY_ORIENTATION,
+      &(uint32_t){DISPLAY_ORIENTATION_NORMAL});
+
+  struct Context context = {
+      .display = display,
+      .serial = serial,
+      .timer = timer,
+      .orientation = DISPLAY_ORIENTATION_NORMAL,
+      .color = 0,
+      .index = 0,
+      .page = 0
+  };
+
+  handleSolidFill(context.display, context.index, context.color,
+      arena, ARRAY_SIZE(arena));
+
+  while (1)
+  {
+    if (!event)
+      barrier();
+    event = false;
+
+    char input[16];
+    const size_t count = ifRead(serial, input, sizeof(input));
+
+    for (size_t i = 0; i < count; ++i)
+      parseInput(&context, input[i]);
+  }
+
+  return 0;
+}

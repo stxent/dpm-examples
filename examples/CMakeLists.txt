@@ -5,6 +5,8 @@ cmake_minimum_required(VERSION 3.21)
 cmake_policy(SET CMP0069 NEW)
 project(examples C)
 
+option(USE_BIN "Convert executables to binary format." OFF)
+option(USE_HEX "Convert executables to Intel HEX format." ON)
 option(USE_DFU "Use memory layout for a bootloader." OFF)
 option(USE_LTO "Enable Link Time Optimization." OFF)
 
@@ -58,19 +60,111 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Generic")
     set(CMAKE_EXECUTABLE_SUFFIX ".elf")
 endif()
 
+# Gather helper objects
+if(EXISTS "${PROJECT_SOURCE_DIR}/helpers")
+    file(GLOB_RECURSE SHARED_SOURCES "helpers/*.c")
+    add_library(helpers OBJECT ${SHARED_SOURCES})
+    target_include_directories(helpers PUBLIC "helpers")
+    target_link_libraries(helpers PUBLIC dpm)
+endif()
+
+# Gather shared objects for current platform
+if(EXISTS "${PROJECT_SOURCE_DIR}/${BUNDLE}/shared")
+    file(GLOB_RECURSE SHARED_SOURCES "${BUNDLE}/shared/*.c")
+    add_library(shared OBJECT ${SHARED_SOURCES})
+    target_include_directories(shared PUBLIC "${BUNDLE}/shared")
+    target_link_libraries(shared PRIVATE dpm)
+endif()
+
 list_directories(EXAMPLES_LIST "${PROJECT_SOURCE_DIR}/${BUNDLE}")
-foreach(EXAMPLE_NAME ${EXAMPLES_LIST})
-    file(GLOB_RECURSE EXAMPLE_SOURCES "${BUNDLE}/${EXAMPLE_NAME}/*.c")
-    add_executable("${EXAMPLE_NAME}" ${EXAMPLE_SOURCES})
-    target_link_libraries("${EXAMPLE_NAME}" PRIVATE dpm halm)
+
+# Generate and build templated examples
+
+foreach(TEMPLATE_NAME ${TEMPLATES_LIST})
+    string(FIND ${TEMPLATE_NAME} ":" _template_config_used)
+
+    if(NOT _template_config_used EQUAL -1)
+        string(REGEX REPLACE "([^:]+):\"?([^\"]+)\"?" "\\1;\\2" _splitted_name ${TEMPLATE_NAME})
+        list(GET _splitted_name 0 _template_name_raw)
+        list(GET _splitted_name 1 _template_config)
+    else()
+        set(_template_name_raw ${TEMPLATE_NAME})
+        set(_template_config "")
+    endif()
+
+    string(FIND ${_template_name_raw} "=" _template_rename_used)
+
+    if(NOT _template_rename_used EQUAL -1)
+        string(REGEX REPLACE "([^:]+)=(.+)" "\\1;\\2" _splitted_name ${_template_name_raw})
+        list(GET _splitted_name 0 _template_alias)
+        list(GET _splitted_name 1 _template_name)
+    else()
+        set(_template_alias ${_template_name_raw})
+        set(_template_name ${_template_name_raw})
+    endif()
+
+    string(TOLOWER ${PLATFORM} _platform_name)
+    string(TOLOWER ${FAMILY} _family_name)
+    set(TEMPLATE_SOURCE "${PROJECT_BINARY_DIR}/${_template_alias}/main.c")
+
+    add_custom_command(
+        OUTPUT ${TEMPLATE_SOURCE}
+        COMMAND "${PROJECT_SOURCE_DIR}/../tools/make_example.py"
+                --alias=${_template_alias}
+                --bundle=${BUNDLE}
+                --config="${_template_config}"
+                --family=${_family_name}
+                --output=${PROJECT_BINARY_DIR}
+                --platform=${_platform_name}
+                ${_template_name}
+        DEPENDS "${PROJECT_SOURCE_DIR}/../templates/${_template_name}.jinja2"
+    )
+
+    add_executable("${_template_alias}" ${TEMPLATE_SOURCE})
+    target_link_libraries("${_template_alias}" PRIVATE helpers shared)
 
     if(${CMAKE_SYSTEM_NAME} STREQUAL "Generic")
-        if(USE_DFU)
+        if(USE_BIN)
+            add_custom_command(TARGET "${_template_alias}"
+                    POST_BUILD
+                    COMMAND "${CMAKE_OBJCOPY}" "${_template_alias}${CMAKE_EXECUTABLE_SUFFIX}" -Obinary "${_template_alias}.bin"
+            )
+        endif()
+        if(USE_HEX)
+            add_custom_command(TARGET "${_template_alias}"
+                    POST_BUILD
+                    COMMAND "${CMAKE_OBJCOPY}" "${_template_alias}${CMAKE_EXECUTABLE_SUFFIX}" -Oihex "${_template_alias}.hex"
+            )
+        endif()
+    endif()
+
+    add_dependencies(size "${_template_alias}")
+    add_custom_command(TARGET size POST_BUILD COMMAND "${CMAKE_SIZE}" "${_template_alias}${CMAKE_EXECUTABLE_SUFFIX}")
+endforeach()
+
+# Build artifacts for all platforms
+
+foreach(EXAMPLE_NAME ${EXAMPLES_LIST})
+    if(${EXAMPLE_NAME} STREQUAL "shared")
+        continue()
+    endif()
+
+    file(GLOB_RECURSE EXAMPLE_SOURCES "${BUNDLE}/${EXAMPLE_NAME}/*.c")
+    add_executable("${EXAMPLE_NAME}" ${EXAMPLE_SOURCES})
+    target_link_libraries("${EXAMPLE_NAME}" PRIVATE helpers)
+
+    if(TARGET shared)
+        target_link_libraries("${EXAMPLE_NAME}" PRIVATE shared)
+    endif()
+
+    if(${CMAKE_SYSTEM_NAME} STREQUAL "Generic")
+        if(USE_BIN)
             add_custom_command(TARGET "${EXAMPLE_NAME}"
                     POST_BUILD
                     COMMAND "${CMAKE_OBJCOPY}" "${EXAMPLE_NAME}${CMAKE_EXECUTABLE_SUFFIX}" -Obinary "${EXAMPLE_NAME}.bin"
             )
-        else()
+        endif()
+        if(USE_HEX)
             add_custom_command(TARGET "${EXAMPLE_NAME}"
                     POST_BUILD
                     COMMAND "${CMAKE_OBJCOPY}" "${EXAMPLE_NAME}${CMAKE_EXECUTABLE_SUFFIX}" -Oihex "${EXAMPLE_NAME}.hex"
@@ -79,5 +173,5 @@ foreach(EXAMPLE_NAME ${EXAMPLES_LIST})
     endif()
 
     add_dependencies(size "${EXAMPLE_NAME}")
-    add_custom_command(TARGET size POST_BUILD COMMAND "${CMAKE_SIZE}" "${EXAMPLE_NAME}")
+    add_custom_command(TARGET size POST_BUILD COMMAND "${CMAKE_SIZE}" "${EXAMPLE_NAME}${CMAKE_EXECUTABLE_SUFFIX}")
 endforeach()

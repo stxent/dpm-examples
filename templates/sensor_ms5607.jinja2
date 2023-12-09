@@ -1,0 +1,266 @@
+/*
+ * {{group.name}}/sensor_ms5607/main.c
+ * Automatically generated file
+ */
+
+#include "board.h"
+#include <dpm/sensors/ms56xx.h>
+#include <dpm/sensors/sensor_handler.h>
+#include <halm/generic/i2c.h>
+#include <halm/timer.h>
+#include <xcore/interface.h>
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+/*----------------------------------------------------------------------------*/
+#define LED_ERROR_PIN BOARD_LED_0
+#define LED_READY_PIN BOARD_LED_1
+
+enum
+{
+  SENSOR_TAG_BARO,
+  SENSOR_TAG_THERMO
+};
+
+struct Context
+{
+  struct Interface *i2c;
+  struct Interface *serial;
+  struct Sensor *sensors[2];
+  struct Timer *timer;
+  struct Pin error;
+  struct Pin ready;
+
+  bool enabled[2];
+  bool automatic;
+  bool manual;
+  bool queued;
+};
+/*----------------------------------------------------------------------------*/
+static void onSampleRequest(void *);
+static void onSensorData(void *, int, const void *, size_t);
+static void onSerialEvent(void *);
+static void serialHandlerTask(void *);
+/*----------------------------------------------------------------------------*/
+static void onSampleRequest(void *argument)
+{
+  struct Context * const context = argument;
+
+  for (size_t i = 0; i < ARRAY_SIZE(context->sensors); ++i)
+  {
+    if (context->enabled[i])
+      sensorSample(context->sensors[i]);
+  }
+}
+/*----------------------------------------------------------------------------*/
+static void onSensorData(void *argument, int tag, const void *buffer,
+    size_t length)
+{
+  struct Context * const context = argument;
+  int32_t value;
+
+  assert(length == sizeof(value));
+  memcpy(&value, buffer, length);
+
+  const int i = abs((int)value) / 256;
+  const int q = ((value >= 0 ? value : -value) & 0xFF) * 1000 / 256;
+
+  size_t count;
+  char text[64];
+
+  if (tag == SENSOR_TAG_BARO)
+  {
+    pinToggle(context->ready);
+    count = sprintf(text, "P:  %i.%03i Pa\r\n", i, q);
+  }
+  else
+  {
+    const char s = value >= 0 ? ' ' : '-';
+    count = sprintf(text, "T: %c%i.%03i C\r\n", s, i, q);
+  }
+
+  ifWrite(context->serial, text, count);
+}
+/*----------------------------------------------------------------------------*/
+static void onSensorError(void *argument, int tag __attribute__((unused)),
+    enum SensorResult error)
+{
+  struct Context * const context = argument;
+
+  pinToggle(context->error);
+  if (error == SENSOR_INTERFACE_TIMEOUT)
+    ifSetParam(context->i2c, IF_I2C_BUS_RECOVERY, NULL);
+  pinToggle(context->error);
+}
+/*----------------------------------------------------------------------------*/
+static void onSerialEvent(void *argument)
+{
+  struct Context * const context = argument;
+
+  if (!context->queued)
+  {
+    if (wqAdd(WQ_DEFAULT, serialHandlerTask, argument) == E_OK)
+      context->queued = true;
+  }
+}
+/*----------------------------------------------------------------------------*/
+static void serialHandlerTask(void *argument)
+{
+  static const char HELP_MESSAGE[] =
+      "Shortcuts:\r\n"
+      "\t1: toggle barometer\r\n"
+      "\t2: toggle thermometer\r\n"
+      "\ta: automatic mode\r\n"
+      "\th: show this help message\r\n"
+      "\tm: time-triggered mode\r\n"
+      "\tr: reset sensor\r\n"
+      "\ts: read sample\r\n";
+
+  struct Context * const context = argument;
+  char buffer[BOARD_UART_BUFFER];
+  size_t count;
+
+  context->queued = false;
+
+  while ((count = ifRead(context->serial, buffer, sizeof(buffer))) > 0)
+  {
+    for (size_t position = 0; position < count; ++position)
+    {
+      switch (buffer[position])
+      {
+        case '1':
+        case '2':
+        {
+          const size_t i = buffer[position] - '1';
+
+          context->enabled[i] = !context->enabled[i];
+          break;
+        }
+
+        case 'a':
+          if (context->automatic)
+          {
+            for (size_t i = 0; i < ARRAY_SIZE(context->sensors); ++i)
+              sensorStop(context->sensors[i]);
+          }
+          else
+          {
+            for (size_t i = 0; i < ARRAY_SIZE(context->sensors); ++i)
+            {
+              if (context->enabled[i])
+                sensorStart(context->sensors[i]);
+            }
+          }
+          context->automatic = !context->automatic;
+          break;
+
+        case 'h':
+          ifWrite(context->serial, HELP_MESSAGE, sizeof(HELP_MESSAGE));
+          break;
+
+        case 'm':
+          if (context->manual)
+            timerDisable(context->timer);
+          else
+            timerEnable(context->timer);
+          context->manual = !context->manual;
+          break;
+
+        case 'r':
+          for (size_t i = 0; i < ARRAY_SIZE(context->sensors); ++i)
+          {
+            if (context->enabled[i])
+              sensorReset(context->sensors[i]);
+          }
+          break;
+
+        case 's':
+        case ' ':
+          for (size_t i = 0; i < ARRAY_SIZE(context->sensors); ++i)
+          {
+            if (context->enabled[i])
+              sensorSample(context->sensors[i]);
+          }
+          context->automatic = false;
+          break;
+      }
+    }
+  }
+}
+/*----------------------------------------------------------------------------*/
+int main(void)
+{
+  static const uint32_t SERIAL_RATE = 500000;
+
+  boardSetupClockPll();
+  boardSetupDefaultWQ();
+
+  const struct Pin ledError = pinInit(LED_ERROR_PIN);
+  pinOutput(ledError, false);
+  const struct Pin ledReady = pinInit(LED_READY_PIN);
+  pinOutput(ledReady, false);
+
+  struct Interface * const serial = boardSetupSerial();
+  ifSetParam(serial, IF_RATE, &SERIAL_RATE);
+
+  struct Timer * const sampleTimer = boardSetupTimer();
+  timerSetOverflow(sampleTimer, timerGetFrequency(sampleTimer) / 2);
+
+  struct Timer * const sensorTimer = boardSetupTimerAux0();
+  struct Interface * const i2c = boardSetupI2C();
+
+  struct SensorHandler sh;
+  shInit(&sh, 4);
+  shSetUpdateWorkQueue(&sh, WQ_DEFAULT);
+
+  const struct MS56XXConfig baroConfig = {
+      .bus = i2c,
+      .timer = sensorTimer,
+      .address = 0x77,
+      .rate = 400000,
+      .cs = 0,
+      .oversampling = MS56XX_OVERSAMPLING_DEFAULT,
+      .subtype = MS56XX_TYPE_5607
+  };
+  struct MS56XX * const baro = init(MS56XX, &baroConfig);
+  assert(baro != NULL);
+
+  shAttach(&sh, baro, SENSOR_TAG_BARO);
+  sensorReset(baro);
+
+  struct MS56XXThermometer * const thermo = ms56xxMakeThermometer(baro);
+  assert(thermo != NULL);
+
+  shAttach(&sh, thermo, SENSOR_TAG_THERMO);
+  sensorReset(thermo);
+
+  struct Context context = {
+      .i2c = i2c,
+      .serial = serial,
+      .sensors = {
+          (struct Sensor *)baro,
+          (struct Sensor *)thermo,
+      },
+      .timer = sampleTimer,
+      .error = ledError,
+      .ready = ledReady,
+      .enabled = {
+          true,
+          true
+      },
+      .automatic = false,
+      .manual = false,
+      .queued = false
+  };
+
+  ifSetCallback(serial, onSerialEvent, &context);
+  shSetDataCallback(&sh, onSensorData, &context);
+  shSetFailureCallback(&sh, onSensorError, &context);
+  timerSetCallback(sampleTimer, onSampleRequest, &context);
+
+  /* Start queue handler */
+  wqStart(WQ_DEFAULT);
+
+  return 0;
+}

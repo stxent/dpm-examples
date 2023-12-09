@@ -1,27 +1,18 @@
 /*
- * lpc17xx_default/sensor_mpu6050/main.c
- * Copyright (C) 2022 xent
- * Project is distributed under the terms of the GNU General Public License v3.0
+ * {{group.name}}/sensor_mpu6050/main.c
+ * Automatically generated file
  */
 
+#include "board.h"
 #include <dpm/sensors/mpu60xx.h>
 #include <dpm/sensors/sensor_handler.h>
-#include <halm/generic/work_queue.h>
-#include <halm/pin.h>
-#include <halm/platform/lpc/clocking.h>
-#include <halm/platform/lpc/gptimer.h>
-#include <halm/platform/lpc/i2c.h>
-#include <halm/platform/lpc/pin_int.h>
-#include <halm/platform/lpc/serial.h>
+#include <halm/timer.h>
+#include <xcore/interface.h>
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 /*----------------------------------------------------------------------------*/
-#define BUFFER_SIZE 512
-#define INT_PIN     PIN(0, 2)
-#define LED_PIN     PIN(1, 8)
-
 enum
 {
   SENSOR_TAG_ACCEL,
@@ -47,62 +38,6 @@ static void onSampleRequest(void *);
 static void onSensorData(void *, int, const void *, size_t);
 static void onSerialEvent(void *);
 static void serialHandlerTask(void *);
-static void setupClock(void);
-/*----------------------------------------------------------------------------*/
-static const struct PinIntConfig eventConfig = {
-    .pin = INT_PIN,
-    .event = INPUT_RISING,
-    .pull = PIN_PULLDOWN
-};
-
-static const struct GpTimerConfig chronoTimerConfig = {
-    .frequency = 1000000,
-    .channel = 2
-};
-
-static const struct GpTimerConfig sampleTimerConfig = {
-    .frequency = 1000000,
-    .channel = 0
-};
-
-static const struct GpTimerConfig sensorTimerConfig = {
-    .frequency = 1000000,
-    .channel = 1
-};
-
-static const struct SerialConfig serialConfig = {
-    .rate = 500000,
-    .rxLength = 16,
-    .txLength = 1024,
-    .rx = PIN(0, 16),
-    .tx = PIN(0, 15),
-    .channel = 1
-};
-
-static const struct I2CConfig i2cConfig = {
-    .rate = 400000,
-    .scl = PIN(0, 11),
-    .sda = PIN(0, 10),
-    .channel = 2
-};
-
-static const struct WorkQueueConfig workQueueConfig = {
-    .size = 4
-};
-/*----------------------------------------------------------------------------*/
-static struct ExternalOscConfig extOscConfig = {
-    .frequency = 12000000
-};
-
-static const struct GenericClockConfig mainClockConfig = {
-    .source = CLOCK_PLL
-};
-
-static const struct PllConfig sysPllConfig = {
-    .source = CLOCK_EXTERNAL,
-    .divisor = 4,
-    .multiplier = 32
-};
 /*----------------------------------------------------------------------------*/
 static void onSampleRequest(void *argument)
 {
@@ -204,12 +139,13 @@ static const char HELP_MESSAGE[] =
       "\t3: toggle thermometer\r\n"
       "\ta: automatic mode\r\n"
       "\th: show this help message\r\n"
+      "\tl: enable low-power mode\r\n"
       "\tm: time-triggered mode\r\n"
       "\tr: reset sensor\r\n"
       "\ts: read sample\r\n";
 
   struct Context * const context = argument;
-  char buffer[BUFFER_SIZE];
+  char buffer[BOARD_UART_BUFFER];
   size_t count;
 
   context->queued = false;
@@ -251,6 +187,15 @@ static const char HELP_MESSAGE[] =
           ifWrite(context->serial, HELP_MESSAGE, sizeof(HELP_MESSAGE));
           break;
 
+        case 'l':
+          for (size_t i = 0; i < ARRAY_SIZE(context->sensors); ++i)
+          {
+            if (context->enabled[i])
+              sensorSuspend(context->sensors[i]);
+          }
+          context->automatic = false;
+          break;
+
         case 'm':
           if (context->manual)
             timerDisable(context->timer);
@@ -281,51 +226,38 @@ static const char HELP_MESSAGE[] =
   }
 }
 /*----------------------------------------------------------------------------*/
-static void setupClock(void)
-{
-  clockEnable(ExternalOsc, &extOscConfig);
-  while (!clockReady(ExternalOsc));
-
-  clockEnable(SystemPll, &sysPllConfig);
-  while (!clockReady(SystemPll));
-
-  clockEnable(MainClock, &mainClockConfig);
-}
-/*----------------------------------------------------------------------------*/
 int main(void)
 {
-  setupClock();
+  static const uint32_t SERIAL_RATE = 500000;
 
-  const struct Pin led = pinInit(LED_PIN);
-  pinOutput(led, false);
+  boardSetupClockPll();
+  boardSetupDefaultWQ();
 
-  struct Interrupt * const event = init(PinInt, &eventConfig);
-  assert(event != NULL);
+  const struct Pin led = pinInit(BOARD_LED_0);
+  pinOutput(led, BOARD_LED_INV);
 
-  struct Timer * const chronoTimer = init(GpTimer, &chronoTimerConfig);
-  assert(chronoTimer != NULL);
+  struct Interface * const serial = boardSetupSerial();
+  ifSetParam(serial, IF_RATE, &SERIAL_RATE);
+
+  struct Timer * const chronoTimer = boardSetupTimer();
   timerEnable(chronoTimer);
 
-  struct Timer * const sampleTimer = init(GpTimer, &sampleTimerConfig);
-  assert(sampleTimer != NULL);
-  timerSetOverflow(sampleTimer, 500000);
+  struct Timer * const sampleTimer = boardSetupTimerAux0();
+  timerSetOverflow(sampleTimer, timerGetFrequency(sampleTimer) / 2);
 
-  struct Timer * const sensorTimer = init(GpTimer, &sensorTimerConfig);
-  assert(sensorTimer != NULL);
+  struct Timer * const sensorTimer = boardSetupTimerAux1();
 
-  struct Interface * const serial = init(Serial, &serialConfig);
-  assert(serial != NULL);
-
-  struct Interface * const i2c = init(I2C, &i2cConfig);
-  assert(i2c != NULL);
+  struct Interrupt * const event =
+      boardSetupSensorEvent(INPUT_RISING, PIN_PULLDOWN);
+  struct Interface * const i2c = boardSetupI2C();
 
   const struct MPU60XXConfig mpuConfig = {
       .bus = i2c,
       .event = event,
       .timer = sensorTimer,
-      .cs = 0,
       .address = 0x68,
       .rate = 400000,
+      .cs = 0,
       .sampleRate = 100,
       .accelScale = MPU60XX_ACCEL_16,
       .gyroScale = MPU60XX_GYRO_2000
@@ -333,12 +265,9 @@ int main(void)
   struct MPU60XX * const mpu = init(MPU60XX, &mpuConfig);
   assert(mpu != NULL);
 
-  /* Initialize Work Queue */
-  WQ_DEFAULT = init(WorkQueue, &workQueueConfig);
-  assert(WQ_DEFAULT != NULL);
-
   struct SensorHandler sh;
-  shInit(&sh, 4, WQ_DEFAULT);
+  shInit(&sh, 4);
+  shSetUpdateWorkQueue(&sh, WQ_DEFAULT);
 
   struct MPU60XXProxy * const accel = mpu60xxMakeAccelerometer(mpu);
   assert(accel != NULL);
@@ -382,7 +311,7 @@ int main(void)
   shSetDataCallback(&sh, onSensorData, &context);
   timerSetCallback(sampleTimer, onSampleRequest, &context);
 
-  /* Start queue handler */
+  /* Start Work Queue */
   wqStart(WQ_DEFAULT);
 
   return 0;

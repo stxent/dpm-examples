@@ -1,19 +1,13 @@
-# Copyright (C) 2022 xent
+# Copyright (C) 2023 xent
 # Project is distributed under the terms of the GNU General Public License v3.0
 
 # Set family name
 set(FAMILY "LPC")
 # Set platform type
-set(PLATFORM "LPC43XX")
+set(PLATFORM "LPC13UXX")
 
 # Define template list
 set(TEMPLATES_LIST
-        display_tft
-        display_tft_spi
         i2c_m24
-        sensor_mpu6050
-        sensor_ms5607
-        sensor_sht20
-        sensor_xpt2046
         systick
 )

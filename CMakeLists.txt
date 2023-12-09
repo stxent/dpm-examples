@@ -21,6 +21,10 @@ add_custom_target(size)
 
 list_directories(BUNDLE_LIST "${PROJECT_SOURCE_DIR}/examples")
 foreach(BUNDLE_NAME ${BUNDLE_LIST})
+    if(${BUNDLE_NAME} STREQUAL "helpers")
+        continue()
+    endif()
+
     set(FLAGS_BUNDLE "")
     list(APPEND FLAGS_BUNDLE -DBUNDLE=${BUNDLE_NAME})
     list(APPEND FLAGS_BUNDLE -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE})

@@ -1,28 +1,20 @@
 /*
- * lpc17xx_default/sensor_ds18b20/main.c
- * Copyright (C) 2022 xent
- * Project is distributed under the terms of the GNU General Public License v3.0
+ * {{group.name}}/sensor_ds18b20/main.c
+ * Automatically generated file
  */
 
+#include "board.h"
 #include <dpm/sensors/ds18b20.h>
 #include <dpm/sensors/sensor_handler.h>
+#include <halm/generic/one_wire.h>
 #include <halm/generic/timer_factory.h>
-#include <halm/generic/work_queue.h>
-#include <halm/pin.h>
-#include <halm/platform/lpc/clocking.h>
-#include <halm/platform/lpc/gptimer.h>
-#include <halm/platform/lpc/one_wire_ssp.h>
-#include <halm/platform/lpc/serial.h>
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 /*----------------------------------------------------------------------------*/
-#define BUFFER_SIZE 64
-#define MAX_SENSORS 8
-
-#define LED_PIN     PIN(1, 8)
-#define PWR_PIN     PIN(0, 3)
+#define MAX_SENSORS     8
+#define SENSOR_PWR_PIN  PIN(0, 3)
 
 struct Context
 {
@@ -41,50 +33,6 @@ static void onSearchCompleted(void *);
 static void onSensorData(void *, int, const void *, size_t);
 static void onSerialEvent(void *);
 static void serialHandlerTask(void *);
-static void setupClock(void);
-/*----------------------------------------------------------------------------*/
-static const struct OneWireSspConfig owConfig = {
-    .miso = PIN(0, 8),
-    .mosi = PIN(0, 9),
-    .channel = 1
-};
-
-static const struct GpTimerConfig sampleTimerConfig = {
-    .frequency = 1000000,
-    .channel = 0
-};
-
-static const struct GpTimerConfig sensorTimerConfig = {
-    .frequency = 1000000,
-    .channel = 1
-};
-
-static const struct SerialConfig serialConfig = {
-    .rate = 500000,
-    .rxLength = 16,
-    .txLength = 1024,
-    .rx = PIN(0, 16),
-    .tx = PIN(0, 15),
-    .channel = 1
-};
-
-static const struct WorkQueueConfig workQueueConfig = {
-    .size = 4
-};
-/*----------------------------------------------------------------------------*/
-static struct ExternalOscConfig extOscConfig = {
-    .frequency = 12000000
-};
-
-static const struct GenericClockConfig mainClockConfig = {
-    .source = CLOCK_PLL
-};
-
-static const struct PllConfig sysPllConfig = {
-    .source = CLOCK_EXTERNAL,
-    .divisor = 4,
-    .multiplier = 32
-};
 /*----------------------------------------------------------------------------*/
 static void onSampleRequest(void *argument)
 {
@@ -146,7 +94,7 @@ static void serialHandlerTask(void *argument)
       "\ts: read sample\r\n";
 
   struct Context * const context = argument;
-  char buffer[BUFFER_SIZE];
+  char buffer[BOARD_UART_BUFFER];
   size_t count;
 
   context->queued = false;
@@ -205,41 +153,30 @@ static void serialHandlerTask(void *argument)
   }
 }
 /*----------------------------------------------------------------------------*/
-static void setupClock(void)
-{
-  clockEnable(ExternalOsc, &extOscConfig);
-  while (!clockReady(ExternalOsc));
-
-  clockEnable(SystemPll, &sysPllConfig);
-  while (!clockReady(SystemPll));
-
-  clockEnable(MainClock, &mainClockConfig);
-}
-/*----------------------------------------------------------------------------*/
 int main(void)
 {
-  setupClock();
+  static const uint32_t SERIAL_RATE = 500000;
 
-  const struct Pin led = pinInit(LED_PIN);
-  pinOutput(led, false);
-  const struct Pin pwr = pinInit(PWR_PIN);
+  boardSetupClockPll();
+  boardSetupDefaultWQ();
+
+  const struct Pin led = pinInit(BOARD_LED_0);
+  pinOutput(led, BOARD_LED_INV);
+  const struct Pin pwr = pinInit(SENSOR_PWR_PIN);
   pinOutput(pwr, false);
 
-  struct Interface * const ow = init(OneWireSsp, &owConfig);
-  assert(ow != NULL);
+  struct Interface * const serial = boardSetupSerial();
+  ifSetParam(serial, IF_RATE, &SERIAL_RATE);
 
-  struct Interface * const serial = init(Serial, &serialConfig);
-  assert(serial != NULL);
+  struct Timer * const sampleTimer = boardSetupTimer();
+  timerSetOverflow(sampleTimer, timerGetFrequency(sampleTimer));
 
-  struct Timer * const sampleTimer = init(GpTimer, &sampleTimerConfig);
-  assert(sampleTimer != NULL);
-  timerSetOverflow(sampleTimer, 1000000);
+  struct Interface * const ow = boardSetupOneWire();
 
   /* Initialize software timer factory */
 
-  struct Timer * const sensorTimer = init(GpTimer, &sensorTimerConfig);
-  assert(sensorTimer != NULL);
-  timerSetOverflow(sensorTimer, 1000);
+  struct Timer * const sensorTimer = boardSetupTimerAux0();
+  timerSetOverflow(sensorTimer, timerGetFrequency(sensorTimer) / 1000);
 
   const struct TimerFactoryConfig factoryConfig = {
       .timer = sensorTimer
@@ -247,13 +184,11 @@ int main(void)
   struct TimerFactory * const factory = init(TimerFactory, &factoryConfig);
   assert(factory != NULL);
 
-  /* Initialize Work Queue */
-
-  WQ_DEFAULT = init(WorkQueue, &workQueueConfig);
-  assert(WQ_DEFAULT != NULL);
+  /* Initialize sensor handler */
 
   struct SensorHandler sh;
-  shInit(&sh, MAX_SENSORS, WQ_DEFAULT);
+  shInit(&sh, MAX_SENSORS);
+  shSetUpdateWorkQueue(&sh, WQ_DEFAULT);
 
   /* Find all sensors on the bus and store them in the context structure */
 

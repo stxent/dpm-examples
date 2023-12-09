@@ -4,15 +4,13 @@
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
+#include "board.h"
 #include <dpm/usb/dfu_bridge.h>
 #include <halm/core/cortex/nvic.h>
 #include <halm/generic/flash.h>
 #include <halm/generic/work_queue.h>
-#include <halm/pin.h>
 #include <halm/platform/lpc/backup_domain.h>
-#include <halm/platform/lpc/clocking.h>
 #include <halm/platform/lpc/flash.h>
-#include <halm/platform/lpc/gptimer.h>
 #include <halm/platform/lpc/usb_device.h>
 #include <assert.h>
 /*----------------------------------------------------------------------------*/
@@ -26,41 +24,7 @@
 static inline void fwRequestClear(void);
 static bool isDfuRequested(void);
 static void onResetRequested(void);
-static void setupClock(void);
 static void startFirmware(void);
-/*----------------------------------------------------------------------------*/
-static struct GpTimerConfig timerConfig = {
-    .frequency = 1000,
-    .channel = 0
-};
-
-static const struct UsbDeviceConfig usbConfig = {
-    .dm = PIN(0, 30),
-    .dp = PIN(0, 29),
-    .connect = PIN(2, 9),
-    .vbus = PIN(1, 30),
-    .vid = 0x15A2,
-    .pid = 0x0044,
-    .channel = 0
-};
-
-static const struct WorkQueueConfig workQueueConfig = {
-    .size = 2
-};
-/*----------------------------------------------------------------------------*/
-static const struct ExternalOscConfig extOscConfig = {
-    .frequency = 12000000
-};
-
-static const struct GenericClockConfig mainClockConfig = {
-    .source = CLOCK_PLL
-};
-
-static const struct PllConfig sysPllConfig = {
-    .source = CLOCK_EXTERNAL,
-    .divisor = 4,
-    .multiplier = 32
-};
 /*----------------------------------------------------------------------------*/
 static inline void fwRequestClear(void)
 {
@@ -85,20 +49,6 @@ static void onResetRequested(void)
   nvicResetCore();
 }
 /*----------------------------------------------------------------------------*/
-static void setupClock(void)
-{
-  clockEnable(ExternalOsc, &extOscConfig);
-  while (!clockReady(ExternalOsc));
-
-  clockEnable(SystemPll, &sysPllConfig);
-  while (!clockReady(SystemPll));
-
-  clockEnable(MainClock, &mainClockConfig);
-
-  clockEnable(UsbClock, &mainClockConfig);
-  while (!clockReady(UsbClock));
-}
-/*----------------------------------------------------------------------------*/
 static void startFirmware(void)
 {
   const uint32_t * const table = (const uint32_t *)FIRMWARE_OFFSET;
@@ -120,7 +70,8 @@ int main(void)
   if (!isDfuRequested())
     startFirmware();
 
-  setupClock();
+  boardSetupClockPll();
+  boardSetupDefaultWQ();
 
   struct FlashGeometry layout[2];
   struct Interface * const flash = init(Flash, NULL);
@@ -128,11 +79,8 @@ int main(void)
   const size_t regions = flashGetGeometry(flash, layout, ARRAY_SIZE(layout));
   assert(regions != 0);
 
-  struct Timer * const timer = init(GpTimer, &timerConfig);
-  assert(timer != NULL);
-
-  struct Entity * const usb = init(UsbDevice, &usbConfig);
-  assert(usb != NULL);
+  struct Timer * const timer = boardSetupTimer();
+  struct Entity * const usb = boardSetupUsb();
 
   const struct DfuConfig dfuConfig = {
       .device = usb,
@@ -154,10 +102,6 @@ int main(void)
   struct DfuBridge * const bridge = init(DfuBridge, &bridgeConfig);
   assert(bridge != NULL);
   (void)bridge;
-
-  /* Initialize Work Queue */
-  WQ_DEFAULT = init(WorkQueue, &workQueueConfig);
-  assert(WQ_DEFAULT != NULL);
 
   /* Start USB enumeration and event loop */
   usbDevSetConnected(usb, true);
