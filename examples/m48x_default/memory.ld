@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 xent
+ * Copyright (C) 2023 xent
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
@@ -8,14 +8,13 @@ EXTERN(vectorTable)
 
 MEMORY
 {
-  FLASH (rx) : ORIGIN = ${FW_ORIGIN}, LENGTH = ${FW_LENGTH}
-  RAM (rwx)  : ORIGIN = 0x10000000, LENGTH = 32K
+  FLASH (rx)  : ORIGIN = 0x00000000, LENGTH = 512K
+  RAM (rwx)   : ORIGIN = 0x20000000, LENGTH = 128K
 
-  GPIO (rw)  : ORIGIN = 0x2009C000, LENGTH = 16K
-  APB0 (rw)  : ORIGIN = 0x40000000, LENGTH = 512K
-  APB1 (rw)  : ORIGIN = 0x40080000, LENGTH = 512K
-  AHB (rw)   : ORIGIN = 0x50000000, LENGTH = 2M
-  PPB (rw)   : ORIGIN = 0xE0000000, LENGTH = 1M
+  CONFIG (r)  : ORIGIN = 0x00300000, LENGTH = 16
+  AHB (rw)    : ORIGIN = 0x40000000, LENGTH = 1M
+  CRYPTO (rw) : ORIGIN = 0x50000000, LENGTH = 1M
+  PPB (rw)    : ORIGIN = 0xE0000000, LENGTH = 1M
 }
 
 SECTIONS
@@ -60,25 +59,20 @@ SECTIONS
     heapStart = .;
   } >RAM
 
-  .gpio :
+  .config :
   {
-    GPIO_DOMAIN = .;
-  } >GPIO
-
-  .apb0 :
-  {
-    APB0_DOMAIN = .;
-  } >APB0
-
-  .apb1 :
-  {
-    APB1_DOMAIN = .;
-  } >APB1
+    CONFIG_DOMAIN = .;
+  } >CONFIG
 
   .ahb :
   {
-    AHB_DOMAIN = .;
+    AHB_APB_DOMAIN = .;
   } >AHB
+
+  .crypto :
+  {
+    CRYPTO_DOMAIN = .;
+  } >CRYPTO
 
   .ppb :
   {

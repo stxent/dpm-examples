@@ -73,27 +73,27 @@ static void handlePageChange(struct Context *context)
   switch (context->page)
   {
     case 0:
-      handleSolidFill(context->display, context->index, context->color,
+      handleSolidFill(context->display, context->color, context->index,
           arena, ARRAY_SIZE(arena));
       break;
 
     case 1:
-      handleGradientFill(context->display, context->index, context->color,
+      handleGradientFill(context->display, context->color, context->index,
           arena, ARRAY_SIZE(arena));
       break;
 
     case 2:
-      handleLineFill(context->display, context->index, context->color,
+      handleLineFill(context->display, context->color, context->index,
           arena, ARRAY_SIZE(arena));
       break;
 
     case 3:
-      handleChessFill(context->display, context->index, context->color,
+      handleChessFill(context->display, context->color, context->index,
           arena, ARRAY_SIZE(arena));
       break;
 
     case 4:
-      handleMarkerFill(context->display, context->index, context->color,
+      handleMarkerFill(context->display, context->color, context->index,
           arena, ARRAY_SIZE(arena));
       break;
 
@@ -221,7 +221,7 @@ int main(void)
 
   while (1)
   {
-    if (!event)
+    while (!event)
       barrier();
     event = false;
 

@@ -1,14 +1,14 @@
 /*
- * lpc43xx_default/spifi_w25/main.c
- * Copyright (C) 2023 xent
- * Project is distributed under the terms of the GNU General Public License v3.0
+ * {{group.name}}/spim_w25/main.c
+ * Automatically generated file
  */
 
 #include "board.h"
 #include <dpm/memory/w25_spim.h>
 #include <halm/generic/flash.h>
-#include <halm/platform/lpc/spifi.h>
+#include <halm/generic/spim.h>
 #include <halm/timer.h>
+#include <xcore/memory.h>
 #include <assert.h>
 #include <string.h>
 /*----------------------------------------------------------------------------*/
@@ -116,14 +116,17 @@ static bool memoryTestSequence(struct Interface *spim,
       return false;
   }
 
-  /* Verify memory mapping mode */
+  /* Verify memory mapped mode */
 
-  const uint8_t * const region = spifiGetAddress((struct Spifi *)spim);
+  uintptr_t mmAddress;
+  ifGetParam(spim, IF_SPIM_MEMORY_MAPPED_ADDRESS, &mmAddress);
+
+  const uint8_t * const mmPointer = (const uint8_t *)mmAddress;
 
   w25MemoryMappingEnable((struct W25SPIM *)memory);
   for (size_t i = 0; i < sizeof(buffer); ++i)
   {
-    if (region[position + i] != (uint8_t)i)
+    if (mmPointer[position + i] != (uint8_t)i)
     {
       w25MemoryMappingDisable((struct W25SPIM *)memory);
       return false;
@@ -301,8 +304,9 @@ int main(void)
   const struct Pin zerocopyLed = pinInit(BOARD_LED_1);
   pinOutput(zerocopyLed, BOARD_LED_INV);
 
-  struct Timer * const timer = boardSetupTimer();
-  struct Interface * const spim = boardSetupSpim(NULL);
+  struct Timer * const busyTimer = boardSetupTimer();
+  struct Timer * const eventTimer = boardSetupTimerAux0();
+  struct Interface * const spim = boardSetupSpim(busyTimer);
 
   const struct W25SPIMConfig w25Config = {
       .spim = spim,
@@ -313,9 +317,9 @@ int main(void)
   struct Interface * const memory = init(W25SPIM, &w25Config);
   assert(memory != NULL);
 
-  timerSetOverflow(timer, timerGetFrequency(timer) * 5);
-  timerSetCallback(timer, onTimerOverflow, &event);
-  timerEnable(timer);
+  timerSetOverflow(eventTimer, timerGetFrequency(eventTimer) * 5);
+  timerSetCallback(eventTimer, onTimerOverflow, &event);
+  timerEnable(eventTimer);
 
   while (1)
   {
@@ -323,13 +327,13 @@ int main(void)
       barrier();
     event = false;
 
-    pinSet(blockingLed);
+    pinWrite(blockingLed, !BOARD_LED_INV);
     if (memoryTestSequence(spim, memory))
-      pinReset(blockingLed);
+      pinWrite(blockingLed, BOARD_LED_INV);
 
-    pinSet(zerocopyLed);
+    pinWrite(zerocopyLed, !BOARD_LED_INV);
     if (memoryTestSequenceZerocopy(memory))
-      pinReset(zerocopyLed);
+      pinWrite(zerocopyLed, BOARD_LED_INV);
   }
 
   return 0;

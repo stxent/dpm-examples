@@ -29,7 +29,7 @@ struct Interface *boardSetupSpi(void)
     __attribute__((alias("boardSetupSpi0")));
 
 struct Timer *boardSetupTimer(void)
-    __attribute__((alias("boardSetupTimer0")));
+    __attribute__((alias("boardSetupTimer3")));
 struct Timer *boardSetupTimerAux0(void)
     __attribute__((alias("boardSetupTimer1")));
 struct Timer *boardSetupTimerAux1(void)
@@ -188,6 +188,7 @@ struct Interface *boardSetupDisplayBus(void)
   /* Clock for SGPIO register interface */
   enablePeriphClock(PeriphClock);
 
+  /* Timer 0 will be used as a DMA event source */
   struct Interface * const interface = init(SgpioBus, &sgpioBusConfig);
   assert(interface != NULL);
   return interface;

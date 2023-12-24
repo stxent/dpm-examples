@@ -6,15 +6,18 @@ set(FAMILY "LPC")
 # Set platform type
 set(PLATFORM "LPC17XX")
 
-# Flash memory settings
-math(EXPR FLASH_LENGTH "512 * 1024")
-math(EXPR FLASH_ORIGIN "0x00000000")
+# Available memory regions
+math(EXPR ADDRESS_FLASH "0x00000000")
 
+# Linker script settings
 if(USE_DFU)
-    math(EXPR DFU_LENGTH "32 * 1024")
-    math(EXPR FLASH_LENGTH "${FLASH_LENGTH} - ${DFU_LENGTH}")
-    math(EXPR FLASH_ORIGIN "${FLASH_ORIGIN} + ${DFU_LENGTH}")
+    set(DFU_LENGTH 16384)
+else()
+    set(DFU_LENGTH 0)
 endif()
+
+math(EXPR FW_LENGTH "512 * 1024 - ${DFU_LENGTH}")
+math(EXPR FW_ORIGIN "${ADDRESS_FLASH} + ${DFU_LENGTH}")
 
 # Define template list
 set(TEMPLATES_LIST

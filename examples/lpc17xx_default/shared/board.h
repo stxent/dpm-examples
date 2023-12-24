@@ -9,7 +9,6 @@
 /*----------------------------------------------------------------------------*/
 #include <halm/generic/work_queue_irq.h>
 #include <halm/pin.h>
-#include <stddef.h>
 /*----------------------------------------------------------------------------*/
 #define BOARD_BUTTON            PIN(2, 10)
 #define BOARD_LED_0             PIN(1, 10)
