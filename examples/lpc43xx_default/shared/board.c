@@ -40,31 +40,28 @@ struct Entity *boardSetupUsb(void)
 
 static void enablePeriphClock(const void *);
 /*----------------------------------------------------------------------------*/
-static const struct PllConfig audioPllConfig = {
-    .source = CLOCK_EXTERNAL,
-    .divisor = 4,
-    .multiplier = 40
-};
-
 static const struct ExternalOscConfig extOscConfig = {
     .frequency = 12000000
 };
+
+static struct ClockSettings sharedClockSettings
+    __attribute__((section(".shared")));
 /*----------------------------------------------------------------------------*/
 DECLARE_WQ_IRQ(WQ_LP, SPI_ISR)
 /*----------------------------------------------------------------------------*/
 static void enablePeriphClock(const void *clock)
 {
-  if (!clockReady(clock))
-  {
-    if (clockReady(SystemPll))
-      clockEnable(clock, &(struct GenericClockConfig){CLOCK_PLL});
-    else if (clockReady(ExternalOsc))
-      clockEnable(clock, &(struct GenericClockConfig){CLOCK_EXTERNAL});
-    else
-      clockEnable(clock, &(struct GenericClockConfig){CLOCK_INTERNAL});
+  if (clockReady(clock))
+    clockDisable(clock);
 
-    while (!clockReady(clock));
-  }
+  if (clockReady(SystemPll))
+    clockEnable(clock, &(struct GenericClockConfig){CLOCK_PLL});
+  else if (clockReady(ExternalOsc))
+    clockEnable(clock, &(struct GenericClockConfig){CLOCK_EXTERNAL});
+  else
+    clockEnable(clock, &(struct GenericClockConfig){CLOCK_INTERNAL});
+
+  while (!clockReady(clock));
 }
 /*----------------------------------------------------------------------------*/
 void boardResetClock(void)
@@ -89,34 +86,40 @@ void boardResetClock(void)
 /*----------------------------------------------------------------------------*/
 void boardSetupClockExt(void)
 {
+  loadClockSettings(&sharedClockSettings);
   clockEnable(MainClock, &(struct GenericClockConfig){CLOCK_INTERNAL});
 
-  clockEnable(ExternalOsc, &extOscConfig);
-  while (!clockReady(ExternalOsc));
+  if (!clockReady(ExternalOsc))
+  {
+    clockEnable(ExternalOsc, &extOscConfig);
+    while (!clockReady(ExternalOsc));
+  }
 
   clockEnable(MainClock, &(struct GenericClockConfig){CLOCK_EXTERNAL});
-}
-/*----------------------------------------------------------------------------*/
-void boardSetupClockInt(void)
-{
-  clockEnable(MainClock, &(struct GenericClockConfig){CLOCK_INTERNAL});
 }
 /*----------------------------------------------------------------------------*/
 void boardSetupClockPll(void)
 {
   static const struct PllConfig systemPllConfig = {
-      .divisor = 2,
+      .divisor = 1,
       .multiplier = 17,
       .source = CLOCK_EXTERNAL
   };
 
+  loadClockSettings(&sharedClockSettings);
   clockEnable(MainClock, &(struct GenericClockConfig){CLOCK_INTERNAL});
 
-  clockEnable(ExternalOsc, &extOscConfig);
-  while (!clockReady(ExternalOsc));
+  if (!clockReady(ExternalOsc))
+  {
+    clockEnable(ExternalOsc, &extOscConfig);
+    while (!clockReady(ExternalOsc));
+  }
 
-  clockEnable(SystemPll, &systemPllConfig);
-  while (!clockReady(SystemPll));
+  if (!clockReady(SystemPll))
+  {
+    clockEnable(SystemPll, &systemPllConfig);
+    while (!clockReady(SystemPll));
+  }
 
   clockEnable(MainClock, &(struct GenericClockConfig){CLOCK_PLL});
 }
@@ -357,22 +360,24 @@ struct Interface *boardSetupSpim(struct Timer *timer __attribute__((unused)))
   };
 
   /* Maximum possible frequency for SPIFI is 104 MHz */
-  struct GenericDividerConfig config;
+  struct GenericDividerConfig divConfig;
 
   if (clockReady(SystemPll))
   {
-    config.divisor = 2;
-    config.source = CLOCK_PLL;
+    /* Make 102 MHz for SPIFI */
+    divConfig.divisor = 2;
+    divConfig.source = CLOCK_PLL;
   }
   else
   {
-    config.divisor = 1;
-    config.source = clockReady(ExternalOsc) ? CLOCK_EXTERNAL : CLOCK_INTERNAL;
+    divConfig.divisor = 1;
+    divConfig.source = clockReady(ExternalOsc) ?
+        CLOCK_EXTERNAL : CLOCK_INTERNAL;
   }
 
-  clockEnable(DividerA, &config);
-  while (!clockReady(DividerA));
-  clockEnable(SpifiClock, &(struct GenericClockConfig){CLOCK_IDIVA});
+  clockEnable(DividerD, &divConfig);
+  while (!clockReady(DividerD));
+  clockEnable(SpifiClock, &(struct GenericClockConfig){CLOCK_IDIVD});
   while (!clockReady(SpifiClock));
 
   struct Interface * const interface = init(Spifi, &spifiConfig);
@@ -479,7 +484,12 @@ struct Entity *boardSetupUsb0(void)
 struct Entity *boardSetupUsb1(void)
 {
   /* Clocks */
-  static const struct GenericDividerConfig divCConfig = {
+  static const struct PllConfig audioPllConfig = {
+      .divisor = 4,
+      .multiplier = 40,
+      .source = CLOCK_EXTERNAL
+  };
+  static const struct GenericDividerConfig divConfig = {
       .divisor = 2,
       .source = CLOCK_AUDIO_PLL
   };
@@ -503,10 +513,10 @@ struct Entity *boardSetupUsb1(void)
   }
 
   /* Make 60 MHz clock required for USB1 */
-  clockEnable(DividerC, &divCConfig);
-  while (!clockReady(DividerC));
+  clockEnable(DividerA, &divConfig);
+  while (!clockReady(DividerA));
 
-  clockEnable(Usb1Clock, &(struct GenericClockConfig){CLOCK_IDIVC});
+  clockEnable(Usb1Clock, &(struct GenericClockConfig){CLOCK_IDIVA});
   while (!clockReady(Usb1Clock));
 
   struct Entity * const usb = init(UsbDevice, &usb1Config);

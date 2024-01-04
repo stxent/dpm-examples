@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 xent
+ * Copyright (C) 2024 xent
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
@@ -8,26 +8,26 @@ EXTERN(vectorTable)
 
 MEMORY
 {
-  /* Internal Flash, Local SRAM, SPIFI or SDRAM */
+  /* Internal Flash Bank A or SRAM0 */
   ROM (rx)    : ORIGIN = ${ROM_ORIGIN}, LENGTH = ${ROM_LENGTH}
-  /* Local SRAM */
-  RAM (rwx)   : ORIGIN = 0x10080000, LENGTH = 40K - 32
+  /* Executable region for user firmware */
+  EXE (rx)    : ORIGIN = ${EXE_ORIGIN}, LENGTH = ${EXE_LENGTH}
   /* AHB/ETB SRAM */
   SRAM4 (rwx) : ORIGIN = 0x2000C000, LENGTH = 16K
   /* Internal EEPROM */
   EEPROM (r)  : ORIGIN = 0x20040000, LENGTH = 16K - 128
 
-  AHB (rw)   : ORIGIN = 0x40000000, LENGTH = 72K
-  RTC (rw)   : ORIGIN = 0x40040000, LENGTH = 64K
-  CLK (rw)   : ORIGIN = 0x40050000, LENGTH = 64K
-  APB0 (rw)  : ORIGIN = 0x40080000, LENGTH = 64K
-  APB1 (rw)  : ORIGIN = 0x400A0000, LENGTH = 64K
-  APB2 (rw)  : ORIGIN = 0x400C0000, LENGTH = 64K
-  APB3 (rw)  : ORIGIN = 0x400E0000, LENGTH = 64K
-  GPIO (rw)  : ORIGIN = 0x400F4000, LENGTH = 16K
-  SPI (rw)   : ORIGIN = 0x40100000, LENGTH = 4K
-  SGPIO (rw) : ORIGIN = 0x40101000, LENGTH = 4K
-  PPB (rw)   : ORIGIN = 0xE0000000, LENGTH = 1M
+  AHB (rw)    : ORIGIN = 0x40000000, LENGTH = 72K
+  RTC (rw)    : ORIGIN = 0x40040000, LENGTH = 64K
+  CLK (rw)    : ORIGIN = 0x40050000, LENGTH = 64K
+  APB0 (rw)   : ORIGIN = 0x40080000, LENGTH = 64K
+  APB1 (rw)   : ORIGIN = 0x400A0000, LENGTH = 64K
+  APB2 (rw)   : ORIGIN = 0x400C0000, LENGTH = 64K
+  APB3 (rw)   : ORIGIN = 0x400E0000, LENGTH = 64K
+  GPIO (rw)   : ORIGIN = 0x400F4000, LENGTH = 16K
+  SPI (rw)    : ORIGIN = 0x40100000, LENGTH = 4K
+  SGPIO (rw)  : ORIGIN = 0x40101000, LENGTH = 4K
+  PPB (rw)    : ORIGIN = 0xE0000000, LENGTH = 1M
 }
 
 SECTIONS
@@ -62,7 +62,7 @@ SECTIONS
     *(.data*)
 
     _edata = .;
-  } >RAM
+  } >SRAM4
 
   .bss : ALIGN(4)
   {
@@ -76,7 +76,7 @@ SECTIONS
 
     . = ALIGN(4);
     heapStart = .;
-  } >RAM
+  } >SRAM4
 
   .ahb :
   {
@@ -146,8 +146,15 @@ SECTIONS
   }
 
   PROVIDE(end = heapStart);
-  PROVIDE(_stack = ORIGIN(RAM) + LENGTH(RAM));
+  PROVIDE(_stack = ORIGIN(SRAM4) + LENGTH(SRAM4));
+  PROVIDE(_firmware = LENGTH(ROM));
 
   PROVIDE(_seeprom = ORIGIN(EEPROM));
   PROVIDE(_eeeprom = ORIGIN(EEPROM) + LENGTH(EEPROM));
+
+  PROVIDE(_sexe = ORIGIN(EXE));
+  PROVIDE(_eexe = ORIGIN(EXE) + LENGTH(EXE));
+
+  PROVIDE(_srom = ORIGIN(ROM));
+  PROVIDE(_erom = ORIGIN(ROM) + LENGTH(ROM));
 }

@@ -32,6 +32,16 @@ static bool memoryTestSequence(struct Interface *spim,
   uint32_t count;
   enum Result res;
 
+  /* Get memory mapping configuration */
+
+  uintptr_t mmAddress;
+  const uint8_t *mmPointer;
+
+  res = ifGetParam(spim, IF_SPIM_MEMORY_MAPPED_ADDRESS, &mmAddress);
+  if (res != E_OK)
+    return false;
+  mmPointer = (const uint8_t *)mmAddress;
+
   /* Read geometry */
 
   res = ifGetParam(memory, IF_SIZE, &capacity);
@@ -86,6 +96,19 @@ static bool memoryTestSequence(struct Interface *spim,
       return false;
   }
 
+  /* Verify memory mapped mode */
+
+  w25MemoryMappingEnable((struct W25SPIM *)memory);
+  for (size_t i = 0; i < sizeof(buffer); ++i)
+  {
+    if (mmPointer[position + i] != 0xFF)
+    {
+      w25MemoryMappingDisable((struct W25SPIM *)memory);
+      return false;
+    }
+  }
+  w25MemoryMappingDisable((struct W25SPIM *)memory);
+
   /* Program */
 
   for (size_t i = 0; i < sizeof(buffer); ++i)
@@ -117,11 +140,6 @@ static bool memoryTestSequence(struct Interface *spim,
   }
 
   /* Verify memory mapped mode */
-
-  uintptr_t mmAddress;
-  ifGetParam(spim, IF_SPIM_MEMORY_MAPPED_ADDRESS, &mmAddress);
-
-  const uint8_t * const mmPointer = (const uint8_t *)mmAddress;
 
   w25MemoryMappingEnable((struct W25SPIM *)memory);
   for (size_t i = 0; i < sizeof(buffer); ++i)

@@ -1,0 +1,273 @@
+/*
+ * {{group.name}}/sensor_hmc5883/main.c
+ * Automatically generated file
+ */
+
+#include "board.h"
+#include <dpm/sensors/hmc5883.h>
+#include <dpm/sensors/sensor_handler.h>
+#include <halm/generic/i2c.h>
+#include <halm/timer.h>
+#include <xcore/interface.h>
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+/*----------------------------------------------------------------------------*/
+#define LED_ERROR_PIN BOARD_LED_0
+#define LED_READY_PIN BOARD_LED_1
+
+enum CalibrationStep
+{
+  SENSOR_CAL_DISABLED,
+  SENSOR_CAL_NEG_BIAS,
+  SENSOR_CAL_POS_BIAS
+} __attribute__((packed));
+
+struct Context
+{
+  struct Interface *i2c;
+  struct Interface *serial;
+  struct Sensor *sensor;
+  struct Timer *chrono;
+  struct Timer *timer;
+  struct Pin error;
+  struct Pin ready;
+
+  enum CalibrationStep calibration;
+  bool automatic;
+  bool manual;
+  bool queued;
+};
+/*----------------------------------------------------------------------------*/
+static void onSampleRequest(void *);
+static void onSensorData(void *, int, const void *, size_t);
+static void onSerialEvent(void *);
+static void serialHandlerTask(void *);
+/*----------------------------------------------------------------------------*/
+static void onSampleRequest(void *argument)
+{
+  struct Context * const context = argument;
+  sensorSample(context->sensor);
+}
+/*----------------------------------------------------------------------------*/
+static void onSensorData(void *argument, int tag __attribute__((unused)),
+    const void *buffer, size_t length)
+{
+  struct Context * const context = argument;
+  const unsigned long timestamp = timerGetValue(context->chrono);
+
+  size_t count;
+  int32_t values[3];
+  char text[64];
+
+  assert(length == sizeof(values));
+  memcpy(&values, buffer, length);
+
+  const char s[3] = {
+      values[0] >= 0 ? ' ' : '-',
+      values[1] >= 0 ? ' ' : '-',
+      values[2] >= 0 ? ' ' : '-'
+  };
+  const int i[3] = {
+      abs((int)values[0]) / 65536,
+      abs((int)values[1]) / 65536,
+      abs((int)values[2]) / 65536
+  };
+  const int q[3] = {
+      ((values[0] >= 0 ? values[0] : -values[0]) & 0xFFFF) * 1000 / 65536,
+      ((values[1] >= 0 ? values[1] : -values[1]) & 0xFFFF) * 1000 / 65536,
+      ((values[2] >= 0 ? values[2] : -values[2]) & 0xFFFF) * 1000 / 65536
+  };
+
+  pinToggle(context->ready);
+  count = sprintf(text, "%lu: %c%i.%03i %c%i.%03i %c%i.%03i Ga\r\n",
+      timestamp,
+      s[0], i[0], q[0],
+      s[1], i[1], q[1],
+      s[2], i[2], q[2]
+  );
+
+  ifWrite(context->serial, text, count);
+
+  if (context->calibration == SENSOR_CAL_POS_BIAS)
+  {
+    context->calibration = SENSOR_CAL_NEG_BIAS;
+    hmc5883ApplyNegOffset((struct HMC5883 *)context->sensor);
+    sensorSample(context->sensor);
+  }
+  else if (context->calibration == SENSOR_CAL_NEG_BIAS)
+  {
+    context->calibration = SENSOR_CAL_DISABLED;
+    hmc5883EnableNormalMode((struct HMC5883 *)context->sensor);
+  }
+}
+/*----------------------------------------------------------------------------*/
+static void onSensorError(void *argument, int tag __attribute__((unused)),
+    enum SensorResult error)
+{
+  struct Context * const context = argument;
+
+  pinToggle(context->error);
+  if (error == SENSOR_INTERFACE_TIMEOUT)
+    ifSetParam(context->i2c, IF_I2C_BUS_RECOVERY, NULL);
+  pinToggle(context->error);
+}
+/*----------------------------------------------------------------------------*/
+static void onSerialEvent(void *argument)
+{
+  struct Context * const context = argument;
+
+  if (!context->queued)
+  {
+    if (wqAdd(WQ_DEFAULT, serialHandlerTask, argument) == E_OK)
+      context->queued = true;
+  }
+}
+/*----------------------------------------------------------------------------*/
+static void serialHandlerTask(void *argument)
+{
+  static const char HELP_MESSAGE[] =
+      "Shortcuts:\r\n"
+      "\ta: automatic mode\r\n"
+      "\tc: calibrate sensor\r\n"
+      "\th: show this help message\r\n"
+      "\tl: enable low-power mode\r\n"
+      "\tm: time-triggered mode\r\n"
+      "\tr: reset sensor\r\n"
+      "\ts: read sample\r\n";
+
+  struct Context * const context = argument;
+  char buffer[BOARD_UART_BUFFER];
+  size_t count;
+
+  context->queued = false;
+
+  while ((count = ifRead(context->serial, buffer, sizeof(buffer))) > 0)
+  {
+    for (size_t position = 0; position < count; ++position)
+    {
+      switch (buffer[position])
+      {
+        case 'a':
+          if (context->automatic)
+            sensorStop(context->sensor);
+          else
+            sensorStart(context->sensor);
+          context->automatic = !context->automatic;
+          break;
+
+        case 'c':
+          if (context->automatic)
+          {
+            sensorStop(context->sensor);
+            context->automatic = false;
+          }
+
+          context->calibration = SENSOR_CAL_POS_BIAS;
+          hmc5883ApplyPosOffset((struct HMC5883 *)context->sensor);
+          sensorSample(context->sensor);
+          break;
+
+        case 'h':
+          ifWrite(context->serial, HELP_MESSAGE, sizeof(HELP_MESSAGE));
+          break;
+
+        case 'l':
+          sensorSuspend(context->sensor);
+          context->automatic = false;
+          break;
+
+        case 'm':
+          if (context->manual)
+            timerDisable(context->timer);
+          else
+            timerEnable(context->timer);
+          context->manual = !context->manual;
+          break;
+
+        case 'r':
+          sensorReset(context->sensor);
+          break;
+
+        case 's':
+        case ' ':
+          sensorSample(context->sensor);
+          context->automatic = false;
+          break;
+      }
+    }
+  }
+}
+/*----------------------------------------------------------------------------*/
+int main(void)
+{
+  static const uint32_t SERIAL_RATE = 500000;
+
+  boardSetupClockPll();
+  boardSetupDefaultWQ();
+
+  const struct Pin ledError = pinInit(LED_ERROR_PIN);
+  pinOutput(ledError, false);
+  const struct Pin ledReady = pinInit(LED_READY_PIN);
+  pinOutput(ledReady, false);
+
+  struct Interface * const serial = boardSetupSerial();
+  ifSetParam(serial, IF_RATE, &SERIAL_RATE);
+
+  struct Timer * const chronoTimer = boardSetupTimer();
+  timerEnable(chronoTimer);
+
+  struct Timer * const sampleTimer = boardSetupTimerAux0();
+  timerSetOverflow(sampleTimer, timerGetFrequency(sampleTimer) / 2);
+
+  struct Timer * const sensorTimer = boardSetupTimerAux1();
+
+  struct Interrupt * const event =
+      boardSetupSensorEvent(INPUT_RISING, PIN_PULLDOWN);
+  struct Interface * const i2c = boardSetupI2C();
+
+  struct SensorHandler sh;
+  shInit(&sh, 4);
+  shSetUpdateWorkQueue(&sh, WQ_DEFAULT);
+
+  const struct HMC5883Config magConfig = {
+      .bus = i2c,
+      .event = event,
+      .timer = sensorTimer,
+      .address = 0x1E,
+      .rate = 400000,
+      .frequency = HMC5883_FREQUENCY_75HZ,
+      .gain = HMC5883_GAIN_880MGA,
+      .oversampling = HMC5883_OVERSAMPLING_DEFAULT
+  };
+  struct HMC5883 * const mag = init(HMC5883, &magConfig);
+  assert(mag != NULL);
+
+  shAttach(&sh, mag, 0);
+  sensorReset(mag);
+
+  struct Context context = {
+      .i2c = i2c,
+      .serial = serial,
+      .sensor = (struct Sensor *)mag,
+      .chrono = chronoTimer,
+      .timer = sampleTimer,
+      .error = ledError,
+      .ready = ledReady,
+      .calibration = SENSOR_CAL_DISABLED,
+      .automatic = false,
+      .manual = false,
+      .queued = false
+  };
+
+  ifSetCallback(serial, onSerialEvent, &context);
+  shSetDataCallback(&sh, onSensorData, &context);
+  shSetFailureCallback(&sh, onSensorError, &context);
+  timerSetCallback(sampleTimer, onSampleRequest, &context);
+
+  /* Start queue handler */
+  wqStart(WQ_DEFAULT);
+
+  return 0;
+}

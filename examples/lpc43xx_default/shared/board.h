@@ -72,7 +72,6 @@ struct StreamPackage
 };
 /*----------------------------------------------------------------------------*/
 void boardSetupClockExt(void);
-void boardSetupClockInt(void);
 void boardSetupClockPll(void);
 void boardSetupDefaultWQ(void);
 void boardSetupLowPriorityWQ(void);

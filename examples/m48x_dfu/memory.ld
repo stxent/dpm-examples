@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 xent
+ * Copyright (C) 2024 xent
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
@@ -8,6 +8,7 @@ EXTERN(vectorTable)
 
 MEMORY
 {
+  /* Internal Flash Bank 0 */
   ROM (rx)    : ORIGIN = ${ROM_ORIGIN}, LENGTH = ${ROM_LENGTH}
   RAM (rwx)   : ORIGIN = 0x20000000, LENGTH = 128K
 
@@ -93,4 +94,7 @@ SECTIONS
 
   PROVIDE(end = heapStart);
   PROVIDE(_stack = ORIGIN(RAM) + LENGTH(RAM));
+
+  PROVIDE(_srom = ORIGIN(ROM));
+  PROVIDE(_erom = ORIGIN(ROM) + LENGTH(ROM));
 }

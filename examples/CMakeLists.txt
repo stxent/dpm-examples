@@ -76,6 +76,7 @@ endif()
 if(EXISTS "${PROJECT_SOURCE_DIR}/${BUNDLE}/shared")
     file(GLOB_RECURSE SHARED_SOURCES "${BUNDLE}/shared/*.c")
     add_library(shared OBJECT ${SHARED_SOURCES})
+    target_compile_definitions(shared PRIVATE "${BUNDLE_DEFS}")
     target_include_directories(shared PUBLIC "${BUNDLE}/shared")
     target_link_libraries(shared PRIVATE dpm)
 endif()
@@ -125,6 +126,7 @@ foreach(TEMPLATE_NAME ${TEMPLATES_LIST})
     )
 
     add_executable("${_template_alias}" ${TEMPLATE_SOURCE})
+    target_compile_definitions("${_template_alias}" PRIVATE "${BUNDLE_DEFS}")
     target_link_libraries("${_template_alias}" PRIVATE helpers shared)
 
     if(${CMAKE_SYSTEM_NAME} STREQUAL "Generic")
@@ -155,6 +157,7 @@ foreach(EXAMPLE_NAME ${EXAMPLES_LIST})
 
     file(GLOB_RECURSE EXAMPLE_SOURCES "${BUNDLE}/${EXAMPLE_NAME}/*.c")
     add_executable("${EXAMPLE_NAME}" ${EXAMPLE_SOURCES})
+    target_compile_definitions("${EXAMPLE_NAME}" PRIVATE "${BUNDLE_DEFS}")
     target_link_libraries("${EXAMPLE_NAME}" PRIVATE helpers)
 
     if(TARGET shared)
