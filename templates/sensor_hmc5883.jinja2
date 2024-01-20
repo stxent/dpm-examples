@@ -4,6 +4,7 @@
  */
 
 #include "board.h"
+#include "sensor_helpers.h"
 #include <dpm/sensors/hmc5883.h>
 #include <dpm/sensors/sensor_handler.h>
 #include <halm/generic/i2c.h>
@@ -29,6 +30,7 @@ struct Context
   struct Interface *i2c;
   struct Interface *serial;
   struct Sensor *sensor;
+  DataFormat format;
   struct Timer *chrono;
   struct Timer *timer;
   struct Pin error;
@@ -56,38 +58,21 @@ static void onSensorData(void *argument, int tag __attribute__((unused)),
 {
   struct Context * const context = argument;
   const unsigned long timestamp = timerGetValue(context->chrono);
+  const DataFormat * const format = &context->format;
+  int32_t raw[3];
 
-  size_t count;
-  int32_t values[3];
+  assert(length == sizeof(raw));
+  assert(format->n * sizeof(int32_t) == length);
+  memcpy(&raw, buffer, length);
+
+  size_t count = 0;
   char text[64];
 
-  assert(length == sizeof(values));
-  memcpy(&values, buffer, length);
-
-  const char s[3] = {
-      values[0] >= 0 ? ' ' : '-',
-      values[1] >= 0 ? ' ' : '-',
-      values[2] >= 0 ? ' ' : '-'
-  };
-  const int i[3] = {
-      abs((int)values[0]) / 65536,
-      abs((int)values[1]) / 65536,
-      abs((int)values[2]) / 65536
-  };
-  const int q[3] = {
-      ((values[0] >= 0 ? values[0] : -values[0]) & 0xFFFF) * 1000 / 65536,
-      ((values[1] >= 0 ? values[1] : -values[1]) & 0xFFFF) * 1000 / 65536,
-      ((values[2] >= 0 ? values[2] : -values[2]) & 0xFFFF) * 1000 / 65536
-  };
+  count += sprintf(text, "%lu H: ", timestamp);
+  count += printFormattedValues(raw, format, "%c%i", "%03i", text + count);
+  count += sprintf(text + count, " Ga\r\n");
 
   pinToggle(context->ready);
-  count = sprintf(text, "%lu: %c%i.%03i %c%i.%03i %c%i.%03i Ga\r\n",
-      timestamp,
-      s[0], i[0], q[0],
-      s[1], i[1], q[1],
-      s[2], i[2], q[2]
-  );
-
   ifWrite(context->serial, text, count);
 
   if (context->calibration == SENSOR_CAL_POS_BIAS)
@@ -251,6 +236,7 @@ int main(void)
       .i2c = i2c,
       .serial = serial,
       .sensor = (struct Sensor *)mag,
+      .format = parseDataFormat(sensorGetFormat(mag)),
       .chrono = chronoTimer,
       .timer = sampleTimer,
       .error = ledError,

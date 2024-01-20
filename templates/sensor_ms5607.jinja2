@@ -4,6 +4,7 @@
  */
 
 #include "board.h"
+#include "sensor_helpers.h"
 #include <dpm/sensors/ms56xx.h>
 #include <dpm/sensors/sensor_handler.h>
 #include <halm/generic/i2c.h>
@@ -28,6 +29,7 @@ struct Context
   struct Interface *i2c;
   struct Interface *serial;
   struct Sensor *sensors[2];
+  DataFormat formats[2];
   struct Timer *timer;
   struct Pin error;
   struct Pin ready;
@@ -58,26 +60,29 @@ static void onSensorData(void *argument, int tag, const void *buffer,
     size_t length)
 {
   struct Context * const context = argument;
-  int32_t value;
+  const DataFormat * const format = &context->formats[tag];
+  int32_t raw;
 
-  assert(length == sizeof(value));
-  memcpy(&value, buffer, length);
+  assert(length == sizeof(raw));
+  assert(format->n * sizeof(int32_t) == length);
+  memcpy(&raw, buffer, length);
 
-  const int i = abs((int)value) / 256;
-  const int q = ((value >= 0 ? value : -value) & 0xFF) * 1000 / 256;
-
-  size_t count;
+  size_t count = 0;
   char text[64];
 
   if (tag == SENSOR_TAG_BARO)
   {
+    count += sprintf(text, "P:  ");
+    count += printFormattedValues(&raw, format, "%i", "%03i", text + count);
+    count += sprintf(text + count, " Pa\r\n");
+
     pinToggle(context->ready);
-    count = sprintf(text, "P:  %i.%03i Pa\r\n", i, q);
   }
   else
   {
-    const char s = value >= 0 ? ' ' : '-';
-    count = sprintf(text, "T: %c%i.%03i C\r\n", s, i, q);
+    count += sprintf(text, "T: ");
+    count += printFormattedValues(&raw, format, "%c%i", "%03i", text + count);
+    count += sprintf(text + count, " C\r\n");
   }
 
   ifWrite(context->serial, text, count);
@@ -241,6 +246,10 @@ int main(void)
       .sensors = {
           (struct Sensor *)baro,
           (struct Sensor *)thermo,
+      },
+      .formats = {
+          parseDataFormat(sensorGetFormat(baro)),
+          parseDataFormat(sensorGetFormat(thermo))
       },
       .timer = sampleTimer,
       .error = ledError,
