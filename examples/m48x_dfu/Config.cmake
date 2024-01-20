@@ -10,7 +10,7 @@ set(PLATFORM "M48X")
 math(EXPR ADDRESS_FLASH "0x00000000")
 
 # Linker script settings
-if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug" OR "${CMAKE_BUILD_TYPE}" STREQUAL "")
     math(EXPR ROM_LENGTH "64 * 1024")
 else()
     math(EXPR ROM_LENGTH "32 * 1024")

@@ -14,7 +14,7 @@ math(EXPR ADDRESS_SRAM1 "0x10080000")
 
 # Linker script settings
 if(TARGET_NOR OR TARGET_SRAM)
-    if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+    if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug" OR "${CMAKE_BUILD_TYPE}" STREQUAL "")
         # 96 KiB or 128 KiB RAM available on flashless parts only
         math(EXPR ROM_LENGTH "96 * 1024")
     else()
@@ -31,7 +31,7 @@ if(TARGET_NOR OR TARGET_SRAM)
     math(EXPR EXE_ORIGIN "${ADDRESS_SRAM1}")
     math(EXPR EXE_LENGTH "72 * 1024")
 else()
-    if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+    if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug" OR "${CMAKE_BUILD_TYPE}" STREQUAL "")
         math(EXPR ROM_LENGTH "64 * 1024")
     else()
         math(EXPR ROM_LENGTH "32 * 1024")

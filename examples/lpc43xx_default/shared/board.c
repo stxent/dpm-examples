@@ -18,9 +18,13 @@
 #include <halm/platform/lpc/system.h>
 #include <halm/platform/lpc/usb_device.h>
 #include <assert.h>
+#include <string.h>
 /*----------------------------------------------------------------------------*/
 struct Interface *boardSetupI2C(void)
     __attribute__((alias("boardSetupI2C1")));
+
+struct Interrupt *boardSetupSensorEvent(enum InputEvent, enum PinPull)
+    __attribute__((alias("boardSetupSensorEvent0")));
 
 struct Interface *boardSetupSpiDisplay(void)
     __attribute__((alias("boardSetupSpi0")));
@@ -86,16 +90,17 @@ void boardResetClock(void)
 /*----------------------------------------------------------------------------*/
 void boardSetupClockExt(void)
 {
-  loadClockSettings(&sharedClockSettings);
-  clockEnable(MainClock, &(struct GenericClockConfig){CLOCK_INTERNAL});
-
-  if (!clockReady(ExternalOsc))
+  if (!loadClockSettings(&sharedClockSettings))
   {
+    clockEnable(MainClock, &(struct GenericClockConfig){CLOCK_INTERNAL});
+
     clockEnable(ExternalOsc, &extOscConfig);
     while (!clockReady(ExternalOsc));
+
+    clockEnable(MainClock, &(struct GenericClockConfig){CLOCK_EXTERNAL});
   }
 
-  clockEnable(MainClock, &(struct GenericClockConfig){CLOCK_EXTERNAL});
+  memset(&sharedClockSettings, 0, sizeof(sharedClockSettings));
 }
 /*----------------------------------------------------------------------------*/
 void boardSetupClockPll(void)
@@ -106,22 +111,20 @@ void boardSetupClockPll(void)
       .source = CLOCK_EXTERNAL
   };
 
-  loadClockSettings(&sharedClockSettings);
-  clockEnable(MainClock, &(struct GenericClockConfig){CLOCK_INTERNAL});
-
-  if (!clockReady(ExternalOsc))
+  if (!loadClockSettings(&sharedClockSettings))
   {
+    clockEnable(MainClock, &(struct GenericClockConfig){CLOCK_INTERNAL});
+
     clockEnable(ExternalOsc, &extOscConfig);
     while (!clockReady(ExternalOsc));
-  }
 
-  if (!clockReady(SystemPll))
-  {
     clockEnable(SystemPll, &systemPllConfig);
     while (!clockReady(SystemPll));
+
+    clockEnable(MainClock, &(struct GenericClockConfig){CLOCK_PLL});
   }
 
-  clockEnable(MainClock, &(struct GenericClockConfig){CLOCK_PLL});
+  memset(&sharedClockSettings, 0, sizeof(sharedClockSettings));
 }
 /*----------------------------------------------------------------------------*/
 void boardSetupDefaultWQ(void)
@@ -268,10 +271,25 @@ struct StreamPackage boardSetupI2S(void)
   };
 }
 /*----------------------------------------------------------------------------*/
-struct Interrupt *boardSetupSensorEvent(enum InputEvent edge, enum PinPull pull)
+struct Interrupt *boardSetupSensorEvent0(enum InputEvent edge,
+    enum PinPull pull)
 {
   const struct PinIntConfig eventIntConfig = {
-      .pin = BOARD_SENSOR_INT,
+      .pin = BOARD_SENSOR_INT_0,
+      .event = edge,
+      .pull = pull
+  };
+
+  struct Interrupt * const interrupt = init(PinInt, &eventIntConfig);
+  assert(interrupt != NULL);
+  return interrupt;
+}
+/*----------------------------------------------------------------------------*/
+struct Interrupt *boardSetupSensorEvent1(enum InputEvent edge,
+    enum PinPull pull)
+{
+  const struct PinIntConfig eventIntConfig = {
+      .pin = BOARD_SENSOR_INT_1,
       .event = edge,
       .pull = pull
   };

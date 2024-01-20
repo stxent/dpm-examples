@@ -32,6 +32,8 @@ static void onResetRequested(void);
 static void startFirmware(struct Board *);
 static void startFirmwareTask(void *);
 /*----------------------------------------------------------------------------*/
+extern unsigned long _stext;
+
 static struct ClockSettings sharedClockSettings
     __attribute__((section(".shared")));
 
@@ -120,6 +122,10 @@ static void startFirmwareTask(void *argument)
 /*----------------------------------------------------------------------------*/
 int main(void)
 {
+#ifdef CONFIG_FIRST_STAGE
+  nvicSetVectorTableOffset((uint32_t)&_stext);
+#endif
+
   boardSetupDefaultWQ();
   boardInit(&instance);
 

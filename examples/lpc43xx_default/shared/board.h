@@ -46,7 +46,6 @@
 #define BOARD_SENSOR_CS         BOARD_SENSOR_CS_0
 #define BOARD_SENSOR_INT_0      PIN(PORT_4, 1)
 #define BOARD_SENSOR_INT_1      PIN(PORT_7, 7)
-#define BOARD_SENSOR_INT        BOARD_SENSOR_INT_0
 
 #define BOARD_USB_IND0          BOARD_USB0_IND0
 #define BOARD_USB_IND1          BOARD_USB0_IND1
@@ -82,6 +81,8 @@ struct Interface *boardSetupI2C0(void);
 struct Interface *boardSetupI2C1(void);
 struct StreamPackage boardSetupI2S(void);
 struct Interrupt *boardSetupSensorEvent(enum InputEvent, enum PinPull);
+struct Interrupt *boardSetupSensorEvent0(enum InputEvent, enum PinPull);
+struct Interrupt *boardSetupSensorEvent1(enum InputEvent, enum PinPull);
 struct Interface *boardSetupSerial(void);
 struct Interface *boardSetupSpi(void);
 struct Interface *boardSetupSpi0(void);
