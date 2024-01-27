@@ -28,6 +28,7 @@ struct DfuBridge;
 struct Interface;
 struct Interrupt;
 struct Timer;
+struct TimerFactory;
 
 struct ButtonPackage
 {
@@ -53,6 +54,12 @@ struct MemoryPackage
   size_t offset;
   size_t regions;
 };
+
+struct TimerPackage
+{
+  struct TimerFactory *factory;
+  struct Timer *timer;
+};
 /*----------------------------------------------------------------------------*/
 void boardClockPostUpdate(void);
 void boardResetClock(void);
@@ -61,17 +68,18 @@ void boardSetupClockExt(void);
 void boardSetupClockPll(void);
 void boardSetupDefaultWQ(void);
 void boardSetupMemoryFlash(struct MemoryPackage *);
+void boardSetupMemoryFlashB(struct MemoryPackage *);
 void boardSetupMemoryNOR(struct MemoryPackage *);
 void boardSetupMemorySRAM(struct MemoryPackage *, void *, size_t);
 struct Interface *boardSetupSpim(void);
 struct Timer *boardSetupTimer(void);
-struct Timer *boardSetupTimerAux(void);
 struct Entity *boardSetupUsb(void);
 struct Entity *boardSetupUsb0(void);
 struct Entity *boardSetupUsb1(void);
 
-void boardSetupButtonPackage(struct ButtonPackage *);
-void boardSetupDfuPackage(struct DfuPackage *, struct Interface *,
-    struct FlashGeometry *, size_t, size_t, void (*)(void));
+void boardSetupButtonPackage(struct ButtonPackage *, struct TimerFactory *);
+void boardSetupDfuPackage(struct DfuPackage *, struct TimerFactory *,
+    struct Interface *, struct FlashGeometry *, size_t, size_t, void (*)(void));
+void boardSetupTimerPackage(struct TimerPackage *);
 /*----------------------------------------------------------------------------*/
 #endif /* LPC43XX_DFU_SHARED_BOARD_H_ */

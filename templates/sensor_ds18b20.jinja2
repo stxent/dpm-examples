@@ -67,7 +67,7 @@ static void onSensorData(void *argument, int tag, const void *buffer,
   char text[64];
 
   count += sprintf(text, "%i: ", tag);
-  count += printFormattedValues(&raw, format, "%c%i", "%03i", text + count);
+  count += printFormattedValues(&raw, format, true, 3, text + count);
   count += sprintf(text + count, " C\r\n");
 
   pinToggle(context->led);

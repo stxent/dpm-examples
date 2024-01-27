@@ -9,7 +9,9 @@
 #include <halm/generic/work_queue.h>
 #include <halm/interrupt.h>
 #include <halm/platform/lpc/clocking.h>
+#include <halm/timer.h>
 #include <halm/usb/usb.h>
+#include <halm/usb/usb_langid.h>
 #include <xcore/asm.h>
 #include <assert.h>
 /*----------------------------------------------------------------------------*/
@@ -18,6 +20,7 @@ struct Board
   struct Pin ind0;
   struct Pin ind1;
 
+  struct TimerPackage timerPackage;
   struct MemoryPackage memoryPackage;
   struct ButtonPackage buttonPackage;
   struct DfuPackage dfuPackage;
@@ -25,6 +28,10 @@ struct Board
 /*----------------------------------------------------------------------------*/
 static void boardInit(struct Board *);
 static void boardDeinit(struct Board *);
+static void customStringHeader(const void *, enum UsbLangId,
+    struct UsbDescriptor *, void *);
+static void customStringWrapper(const void *, enum UsbLangId,
+    struct UsbDescriptor *, void *);
 static void onButtonPressed(void *);
 static void onResetRequested(void);
 static void startFirmware(struct Board *);
@@ -35,6 +42,7 @@ extern unsigned long _erom;
 
 static struct ClockSettings sharedClockSettings
     __attribute__((section(".shared")));
+static const char productStringEn[] = "LPC43xx M4 DFU to Flash";
 
 struct Board instance;
 /*----------------------------------------------------------------------------*/
@@ -51,11 +59,14 @@ static void boardInit(struct Board *board)
 
   board->memoryPackage.offset = (uintptr_t)&_erom - (uintptr_t)&_srom;
 
-  boardSetupButtonPackage(&board->buttonPackage);
-  boardSetupDfuPackage(&board->dfuPackage, board->memoryPackage.flash,
-      board->memoryPackage.geometry, board->memoryPackage.regions,
-      board->memoryPackage.offset, onResetRequested);
+  boardSetupTimerPackage(&board->timerPackage);
+  boardSetupButtonPackage(&board->buttonPackage, board->timerPackage.factory);
+  boardSetupDfuPackage(&board->dfuPackage, board->timerPackage.factory,
+      board->memoryPackage.flash, board->memoryPackage.geometry,
+      board->memoryPackage.regions, board->memoryPackage.offset,
+      onResetRequested);
 
+  timerEnable(board->timerPackage.timer);
   interruptSetCallback(board->buttonPackage.button, onButtonPressed, board);
   interruptEnable(board->buttonPackage.button);
 }
@@ -75,6 +86,20 @@ static void boardDeinit(struct Board *board)
 
   boardResetClock();
   pinWrite(board->ind0, BOARD_LED_INV);
+}
+/*----------------------------------------------------------------------------*/
+static void customStringHeader(const void *argument __attribute__((unused)),
+    enum UsbLangId langid __attribute__((unused)),
+    struct UsbDescriptor *header, void *payload)
+{
+  usbStringHeader(header, payload, LANGID_ENGLISH_US);
+}
+/*----------------------------------------------------------------------------*/
+static void customStringWrapper(const void *argument,
+    enum UsbLangId langid __attribute__((unused)),
+    struct UsbDescriptor *header, void *payload)
+{
+  usbStringWrap(header, payload, argument);
 }
 /*----------------------------------------------------------------------------*/
 static void onButtonPressed(void *argument)
@@ -112,8 +137,12 @@ int main(void)
   boardSetupDefaultWQ();
   boardInit(&instance);
 
+  usbDevStringAppend(instance.dfuPackage.usb, usbStringBuild(
+      customStringHeader, 0, USB_STRING_HEADER, 0));
+  usbDevStringAppend(instance.dfuPackage.usb, usbStringBuild(
+      customStringWrapper, productStringEn, USB_STRING_PRODUCT, 0));
   usbDevSetConnected(instance.dfuPackage.usb, true);
-  wqStart(WQ_DEFAULT);
 
+  wqStart(WQ_DEFAULT);
   return 0;
 }

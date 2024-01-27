@@ -5,8 +5,10 @@
  */
 
 #include "board.h"
+#include <halm/core/cortex/systick.h>
 #include <halm/generic/flash.h>
 #include <halm/generic/ram_proxy.h>
+#include <halm/generic/timer_factory.h>
 #include <halm/generic/work_queue.h>
 #include <halm/platform/lpc/clocking.h>
 #include <halm/platform/lpc/flash.h>
@@ -115,7 +117,8 @@ void boardSetupDefaultWQ(void)
   assert(WQ_DEFAULT != NULL);
 }
 /*----------------------------------------------------------------------------*/
-void boardSetupButtonPackage(struct ButtonPackage *package)
+void boardSetupButtonPackage(struct ButtonPackage *package,
+    struct TimerFactory *factory)
 {
   static const struct PinIntConfig buttonEventConfig = {
       .pin = BOARD_BUTTON,
@@ -126,7 +129,7 @@ void boardSetupButtonPackage(struct ButtonPackage *package)
   package->event = init(PinInt, &buttonEventConfig);
   assert(package->event != NULL);
 
-  package->timer = boardSetupTimerAux();
+  package->timer = timerFactoryCreate(factory);
   timerSetOverflow(package->timer, timerGetFrequency(package->timer) / 100);
 
   const struct ButtonConfig buttonConfig = {
@@ -140,11 +143,12 @@ void boardSetupButtonPackage(struct ButtonPackage *package)
   assert(package->button != NULL);
 }
 /*----------------------------------------------------------------------------*/
-void boardSetupDfuPackage(struct DfuPackage *package, struct Interface *flash,
+void boardSetupDfuPackage(struct DfuPackage *package,
+    struct TimerFactory *factory, struct Interface *flash,
     struct FlashGeometry *geometry, size_t regions, size_t offset,
     void (*reset)(void))
 {
-  package->timer = boardSetupTimer();
+  package->timer = timerFactoryCreate(factory);
   package->usb = boardSetupUsb();
 
   const struct DfuConfig dfuConfig = {
@@ -168,11 +172,37 @@ void boardSetupDfuPackage(struct DfuPackage *package, struct Interface *flash,
   assert(package->bridge != NULL);
 }
 /*----------------------------------------------------------------------------*/
+void boardSetupTimerPackage(struct TimerPackage *package)
+{
+  package->timer = boardSetupTimer();
+  assert(package->timer != NULL);
+  timerSetOverflow(package->timer, timerGetFrequency(package->timer) / 1000);
+
+  const struct TimerFactoryConfig timerFactoryConfig = {
+      .timer = package->timer
+  };
+  package->factory = init(TimerFactory, &timerFactoryConfig);
+  assert(package->factory != NULL);
+}
+/*----------------------------------------------------------------------------*/
 void boardSetupMemoryFlash(struct MemoryPackage *package)
 {
   package->spifi = NULL;
 
   package->flash = init(Flash, &(struct FlashConfig){FLASH_BANK_A});
+  assert(package->flash != NULL);
+
+  package->offset = 0;
+  package->regions = flashGetGeometry(package->flash, package->geometry,
+      ARRAY_SIZE(package->geometry));
+  assert(package->regions > 0);
+}
+/*----------------------------------------------------------------------------*/
+void boardSetupMemoryFlashB(struct MemoryPackage *package)
+{
+  package->spifi = NULL;
+
+  package->flash = init(Flash, &(struct FlashConfig){FLASH_BANK_B});
   assert(package->flash != NULL);
 
   package->offset = 0;
@@ -261,24 +291,7 @@ struct Interface *boardSetupSpim(void)
 /*----------------------------------------------------------------------------*/
 struct Timer *boardSetupTimer(void)
 {
-  static const struct GpTimerConfig timerConfig = {
-      .frequency = 1000000,
-      .channel = 0
-  };
-
-  struct Timer * const timer = init(GpTimer, &timerConfig);
-  assert(timer != NULL);
-  return timer;
-}
-/*----------------------------------------------------------------------------*/
-struct Timer *boardSetupTimerAux(void)
-{
-  static const struct GpTimerConfig timerConfig = {
-      .frequency = 1000000,
-      .channel = 1
-  };
-
-  struct Timer * const timer = init(GpTimer, &timerConfig);
+  struct Timer * const timer = init(SysTick, NULL);
   assert(timer != NULL);
   return timer;
 }

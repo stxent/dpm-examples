@@ -73,7 +73,7 @@ static void onSensorData(void *argument, int tag, const void *buffer,
   if (tag == SENSOR_TAG_BARO)
   {
     count += sprintf(text, "P:  ");
-    count += printFormattedValues(&raw, format, "%i", "%03i", text + count);
+    count += printFormattedValues(&raw, format, false, 3, text + count);
     count += sprintf(text + count, " Pa\r\n");
 
     pinToggle(context->ready);
@@ -81,7 +81,7 @@ static void onSensorData(void *argument, int tag, const void *buffer,
   else
   {
     count += sprintf(text, "T: ");
-    count += printFormattedValues(&raw, format, "%c%i", "%03i", text + count);
+    count += printFormattedValues(&raw, format, true, 3, text + count);
     count += sprintf(text + count, " C\r\n");
   }
 

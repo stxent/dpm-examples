@@ -9,67 +9,22 @@
 #include <stdio.h>
 #include <stdlib.h>
 /*----------------------------------------------------------------------------*/
-static unsigned int extractFormatWidth(const char *);
-static bool isSignRequired(const char *);
-/*----------------------------------------------------------------------------*/
-static unsigned int extractFormatWidth(const char *format)
-{
-  unsigned int width = 0;
-
-  do
-  {
-    if (*format >= '0' && *format <= '9')
-    {
-      if (width)
-        width = width * 10 + (*format - '0');
-      else if (*format != '0')
-        width = *format - '0';
-    }
-    else if (width)
-    {
-      break;
-    }
-  }
-  while (*format++);
-
-  return width;
-}
-/*----------------------------------------------------------------------------*/
-static bool isSignRequired(const char *format)
-{
-  do
-  {
-    if (*format == 'c')
-      return true;
-  }
-  while (*format++);
-
-  return false;
-}
-/*----------------------------------------------------------------------------*/
 float applyDataFormatFloat(int32_t raw, const DataFormat *format)
 {
   return (float)raw / (1 << format->q);
 }
 /*----------------------------------------------------------------------------*/
 DecimalNumber applyDataFormatDecimal(int32_t raw, const DataFormat *format,
-    unsigned int precision)
+    unsigned int multiplier)
 {
   DecimalNumber result;
-  int mul = 1;
-
-  while (precision)
-  {
-    mul *= 10;
-    --precision;
-  }
 
   result.negative = raw < 0;
   const int32_t absolute = result.negative ? -raw : raw;
 
   result.integer = absolute / (1 << format->q);
   result.decimal = absolute & ((1 << format->q) - 1);
-  result.decimal = result.decimal * mul / (1 << format->q);
+  result.decimal = result.decimal * multiplier / (1 << format->q);
 
   return result;
 }
@@ -153,18 +108,34 @@ DataFormat parseDataFormat(const char *str)
   return error ? (DataFormat){0, 0, 0} : result;
 }
 /*----------------------------------------------------------------------------*/
+/**
+ * Convert packed integer values from an IQ format to a string.
+ * @param values Pointer to an array of packed values, array type will be
+ * deduced automatically from the format descriptor.
+ * @param format Format descriptor of an input array.
+ * @param integerFormatSign When @b true sign will be added to the integer part.
+ * @param decimalFormatPrecision Number of digits in a fractional part.
+ * @param output Buffer for an output data.
+ * @return Number of characters printed.
+ */
 size_t printFormattedValues(const void *values, const DataFormat *format,
-    const char *integerFormat, const char *decimalFormat, char *output)
+    bool integerFormatSign, unsigned int decimalFormatPrecision, char *output)
 {
-  assert(values != NULL && format != NULL && output != NULL);
-  assert(integerFormat != NULL);
+  static const unsigned int PRECISION_MUL[] = {
+      1, 10, 100, 1000, 10000, 100000, 1000000
+  };
 
+  assert(values != NULL && format != NULL && output != NULL);
+  assert(decimalFormatPrecision <= 6);
+
+  const unsigned int mul = PRECISION_MUL[decimalFormatPrecision];
   const unsigned int width = format->i + format->q;
   assert(width == 8 || width == 16 || width == 32);
 
-  const bool sign = isSignRequired(integerFormat);
-  const unsigned int precision = decimalFormat != NULL ?
-      extractFormatWidth(decimalFormat) : 0;
+  const char decimalFormat[] = {
+      '%', '0', '0' + decimalFormatPrecision, 'i', '\0'
+  };
+
   size_t processed = 0;
 
   for (size_t index = 0; index < format->n; ++index)
@@ -174,27 +145,22 @@ size_t printFormattedValues(const void *values, const DataFormat *format,
         : (width == 16) ? *((const int16_t *)values + index)
         : *((const int32_t *)values + index);
 
-    const DecimalNumber converted =
-        applyDataFormatDecimal(value, format, precision);
+    const DecimalNumber converted = applyDataFormatDecimal(value, format, mul);
 
-    if (sign)
-    {
-      processed += sprintf(output + processed, integerFormat,
-          converted.negative ? '-' : ' ', converted.integer);
-    }
-    else
-    {
-      processed += sprintf(output + processed, integerFormat,
-          converted.integer);
-    }
+    /* Integer part */
+    if (integerFormatSign)
+      output[processed++] = converted.negative ? '-' : ' ';
+    processed += sprintf(output + processed, "%i", converted.integer);
 
-    if (decimalFormat != NULL)
+    /* Fractional part */
+    if (decimalFormatPrecision)
     {
       output[processed++] = '.';
       processed += sprintf(output + processed, decimalFormat,
           converted.decimal);
     }
 
+    /* Element separator */
     if (index < (size_t)format->n - 1)
       output[processed++] = ' ';
   }

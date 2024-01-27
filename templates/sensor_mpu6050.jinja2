@@ -70,19 +70,19 @@ static void onSensorData(void *argument, int tag __attribute__((unused)),
   if (tag == SENSOR_TAG_THERMO)
   {
     count += sprintf(text, "%lu T: ", timestamp);
-    count += printFormattedValues(raw, format, "%c%i", "%03i", text + count);
+    count += printFormattedValues(raw, format, true, 3, text + count);
     count += sprintf(text + count, " C\r\n");
   }
   else if (tag == SENSOR_TAG_ACCEL)
   {
     count += sprintf(text, "%lu a: ", timestamp);
-    count += printFormattedValues(raw, format, "%c%i", "%03i", text + count);
+    count += printFormattedValues(raw, format, true, 3, text + count);
     count += sprintf(text + count, " g\r\n");
   }
   else
   {
     count += sprintf(text, "%lu w: ", timestamp);
-    count += printFormattedValues(raw, format, "%c%i", "%03i", text + count);
+    count += printFormattedValues(raw, format, true, 3, text + count);
     count += sprintf(text + count, " rad/s\r\n");
 
     pinToggle(context->led);

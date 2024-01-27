@@ -256,6 +256,9 @@ struct StreamPackage boardSetupI2S(void)
       .slave = false
   };
 
+  /* I2S are connected to the APB1 bus */
+  enablePeriphClock(Apb1Clock);
+
   struct I2SDma * const interface = init(I2SDma, &i2sConfig);
   assert(interface != NULL);
 

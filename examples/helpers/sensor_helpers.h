@@ -31,8 +31,8 @@ BEGIN_DECLS
 DecimalNumber applyDataFormatDecimal(int32_t, const DataFormat *, unsigned int);
 float applyDataFormatFloat(int32_t, const DataFormat *);
 DataFormat parseDataFormat(const char *);
-size_t printFormattedValues(const void *, const DataFormat *, const char *,
-    const char *, char *);
+size_t printFormattedValues(const void *, const DataFormat *, bool,
+    unsigned int, char *);
 
 END_DECLS
 /*----------------------------------------------------------------------------*/
