@@ -5,6 +5,7 @@
  */
 
 #include "board.h"
+#include <dpm/platform/lpc/irda.h>
 #include <dpm/platform/lpc/memory_bus_dma.h>
 #include <dpm/platform/lpc/memory_bus_gpio.h>
 #include <halm/generic/work_queue.h>
@@ -119,8 +120,8 @@ struct Interrupt *boardSetupButton(void)
 {
   static const struct PinIntConfig buttonIntConfig = {
       .pin = BOARD_BUTTON,
-      .event = INPUT_FALLING,
-      .pull = PIN_PULLUP
+      .event = BOARD_BUTTON_INV ? INPUT_FALLING : INPUT_RISING,
+      .pull = BOARD_BUTTON_INV ? PIN_PULLUP : PIN_PULLDOWN
   };
 
   struct Interrupt * const interrupt = init(PinInt, &buttonIntConfig);
@@ -212,15 +213,22 @@ struct Interface *boardSetupI2C(void)
   return interface;
 }
 /*----------------------------------------------------------------------------*/
-struct Interface *boardSetupOneWire(void)
+struct Interface *boardSetupIrda(bool master)
 {
-  static const struct OneWireSspConfig owConfig = {
-      .miso = PIN(0, 8),
-      .mosi = PIN(0, 9),
-      .channel = 1
+  const struct IrdaConfig irdaConfig = {
+      .rate = 115200,
+      .rxLength = BOARD_UART_BUFFER,
+      .txLength = BOARD_UART_BUFFER,
+      .frameLength = BOARD_UART_BUFFER / 4,
+      .rx = PIN(0, 3),
+      .tx = PIN(0, 2),
+      .channel = 0,
+      .timer = 0,
+      .inversion = false,
+      .master = master
   };
 
-  struct Interface * const interface = init(OneWireSsp, &owConfig);
+  struct Interface * const interface = init(Irda, &irdaConfig);
   assert(interface != NULL);
   return interface;
 }
@@ -260,6 +268,20 @@ struct StreamPackage boardSetupI2S(void)
       rxStream,
       txStream
   };
+}
+
+/*----------------------------------------------------------------------------*/
+struct Interface *boardSetupOneWire(void)
+{
+  static const struct OneWireSspConfig owConfig = {
+      .miso = PIN(0, 8),
+      .mosi = PIN(0, 9),
+      .channel = 1
+  };
+
+  struct Interface * const interface = init(OneWireSsp, &owConfig);
+  assert(interface != NULL);
+  return interface;
 }
 /*----------------------------------------------------------------------------*/
 struct Interrupt *boardSetupSensorEvent(enum InputEvent edge, enum PinPull pull)

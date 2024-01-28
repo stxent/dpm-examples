@@ -11,6 +11,7 @@
 #include <halm/pin.h>
 /*----------------------------------------------------------------------------*/
 #define BOARD_BUTTON            PIN(2, 10)
+#define BOARD_BUTTON_INV        true
 #define BOARD_LED_0             PIN(1, 10)
 #define BOARD_LED_1             PIN(1, 9)
 #define BOARD_LED_2             PIN(1, 8)
@@ -78,6 +79,7 @@ struct Interface *boardSetupDisplayBusDma(void);
 struct Interface *boardSetupDisplayBusSimple(void);
 struct Interface *boardSetupI2C(void);
 struct StreamPackage boardSetupI2S(void);
+struct Interface *boardSetupIrda(bool);
 struct Interface *boardSetupOneWire(void);
 struct Interrupt *boardSetupSensorEvent(enum InputEvent, enum PinPull);
 struct Interface *boardSetupSerial(void);

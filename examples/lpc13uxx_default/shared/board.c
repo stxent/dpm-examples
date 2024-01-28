@@ -5,6 +5,7 @@
  */
 
 #include "board.h"
+#include <dpm/platform/lpc/irda.h>
 #include <halm/generic/work_queue.h>
 #include <halm/platform/lpc/clocking.h>
 #include <halm/platform/lpc/gptimer.h>
@@ -86,8 +87,8 @@ struct Interrupt *boardSetupButton(void)
 {
   static const struct PinIntConfig buttonIntConfig = {
       .pin = BOARD_BUTTON,
-      .event = INPUT_FALLING,
-      .pull = PIN_PULLUP
+      .event = BOARD_BUTTON_INV ? INPUT_FALLING : INPUT_RISING,
+      .pull = BOARD_BUTTON_INV ? PIN_PULLUP : PIN_PULLDOWN
   };
 
   struct Interrupt * const interrupt = init(PinInt, &buttonIntConfig);
@@ -105,6 +106,26 @@ struct Interface *boardSetupI2C(void)
   };
 
   struct Interface * const interface = init(I2C, &i2cConfig);
+  assert(interface != NULL);
+  return interface;
+}
+/*----------------------------------------------------------------------------*/
+struct Interface *boardSetupIrda(bool master)
+{
+  const struct IrdaConfig irdaConfig = {
+      .rate = 115200,
+      .rxLength = BOARD_UART_BUFFER,
+      .txLength = BOARD_UART_BUFFER,
+      .frameLength = BOARD_UART_BUFFER / 4,
+      .rx = PIN(0, 18),
+      .tx = PIN(0, 19),
+      .channel = 0,
+      .timer = GPTIMER_CT32B0,
+      .inversion = false,
+      .master = master
+  };
+
+  struct Interface * const interface = init(Irda, &irdaConfig);
   assert(interface != NULL);
   return interface;
 }

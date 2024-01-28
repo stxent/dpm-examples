@@ -9,5 +9,6 @@ set(PLATFORM "LPC13UXX")
 # Define template list
 set(TEMPLATES_LIST
         i2c_m24
+        irda_bridge
         systick
 )

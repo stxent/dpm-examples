@@ -11,6 +11,7 @@
 #include <halm/pin.h>
 /*----------------------------------------------------------------------------*/
 #define BOARD_BUTTON            PIN(PORT_2, 7)
+#define BOARD_BUTTON_INV        true
 #define BOARD_LED_0             PIN(PORT_5, 7)
 #define BOARD_LED_1             PIN(PORT_5, 5)
 #define BOARD_LED_2             PIN(PORT_4, 0)

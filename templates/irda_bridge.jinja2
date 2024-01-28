@@ -1,0 +1,123 @@
+/*
+ * {{group.name}}/irda_bridge/main.c
+ * Automatically generated file
+ */
+
+#include "board.h"
+#include <halm/usb/cdc_acm.h>
+#include <halm/usb/usb.h>
+#include <assert.h>
+/*----------------------------------------------------------------------------*/
+#define USB_FRAME_SIZE 64
+
+struct InterfaceTuple
+{
+  struct Interface *first;
+  struct Interface *second;
+  struct Pin led;
+  bool active;
+};
+/*----------------------------------------------------------------------------*/
+static void onInterfaceEvent(void *);
+static void transferData(void *);
+/*----------------------------------------------------------------------------*/
+static void onInterfaceEvent(void *argument)
+{
+  struct InterfaceTuple * const tuple = argument;
+
+  if (!tuple->active)
+  {
+    tuple->active = true;
+    wqAdd(WQ_DEFAULT, transferData, argument);
+  }
+}
+/*----------------------------------------------------------------------------*/
+static void transferData(void *argument)
+{
+  struct InterfaceTuple * const tuple = argument;
+  size_t available;
+  size_t pending;
+
+  if (pinValid(tuple->led))
+    pinToggle(tuple->led);
+
+  do
+  {
+    ifGetParam(tuple->second, IF_TX_PENDING, &pending);
+    if (pending > BOARD_UART_BUFFER - USB_FRAME_SIZE)
+    {
+      /* Re-enqueue task */
+      wqAdd(WQ_DEFAULT, transferData, argument);
+      break;
+    }
+
+    uint8_t buffer[USB_FRAME_SIZE];
+    size_t length = ifRead(tuple->first, buffer, sizeof(buffer));
+    const uint8_t *position = buffer;
+
+    while (length)
+    {
+      const size_t written = ifWrite(tuple->second, position, length);
+
+      length -= written;
+      position += written;
+    }
+
+    ifGetParam(tuple->first, IF_RX_AVAILABLE, &available);
+    tuple->active = available > 0;
+  }
+  while (available > 0);
+
+  if (pinValid(tuple->led))
+    pinToggle(tuple->led);
+}
+/*----------------------------------------------------------------------------*/
+int main(void)
+{
+  boardSetupClockPll();
+  boardSetupDefaultWQ();
+
+  const struct Pin button = pinInit(BOARD_BUTTON);
+  pinInput(button);
+
+  struct Interface * const irda = boardSetupIrda(
+      pinRead(button) ? !BOARD_BUTTON_INV : BOARD_BUTTON_INV);
+
+  struct Entity * const usb = boardSetupUsb();
+
+  const struct CdcAcmConfig config = {
+      .device = usb,
+      .arena = NULL,
+      .rxBuffers = 4,
+      .txBuffers = 4,
+
+      .endpoints = {
+          .interrupt = BOARD_USB_CDC_INT,
+          .rx = BOARD_USB_CDC_RX,
+          .tx = BOARD_USB_CDC_TX
+      }
+  };
+
+  struct Interface * const serial = init(CdcAcm, &config);
+  assert(serial != NULL);
+
+  struct InterfaceTuple forward = {irda, serial, pinInit(BOARD_LED_1), false};
+  if (pinValid(forward.led))
+    pinOutput(forward.led, BOARD_LED_INV);
+
+  struct InterfaceTuple backward = {serial, irda, pinInit(BOARD_LED_0), false};
+  if (pinValid(backward.led))
+    pinOutput(backward.led, BOARD_LED_INV);
+
+  ifSetCallback(irda, onInterfaceEvent, &forward);
+  ifSetCallback(serial, onInterfaceEvent, &backward);
+
+  /* Start USB enumeration */
+  usbDevSetConnected(usb, true);
+
+  /* Initialize and start Work Queue */
+  wqAdd(WQ_DEFAULT, transferData, &forward);
+  wqStart(WQ_DEFAULT);
+
+  return 0;
+}
