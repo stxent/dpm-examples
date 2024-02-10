@@ -26,7 +26,7 @@ set(TEMPLATES_LIST
         i2c_m24
         irda_bridge
         sensor_ds18b20
-        sensor_mpu6050
+        sensor_mpu6000
         sensor_ms5607
         sensor_sht20
         sensor_xpt2046

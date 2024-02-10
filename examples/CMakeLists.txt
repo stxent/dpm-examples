@@ -72,7 +72,7 @@ endif()
 if(EXISTS "${PROJECT_SOURCE_DIR}/${BUNDLE}/shared")
     file(GLOB_RECURSE SHARED_SOURCES "${BUNDLE}/shared/*.c")
     add_library(shared OBJECT ${SHARED_SOURCES})
-    target_compile_definitions(shared PRIVATE "${BUNDLE_DEFS}")
+    target_compile_definitions(shared PRIVATE ${BUNDLE_DEFS})
     target_include_directories(shared PUBLIC "${BUNDLE}/shared")
     target_link_libraries(shared PRIVATE dpm)
 endif()
@@ -108,6 +108,12 @@ foreach(TEMPLATE_NAME ${TEMPLATES_LIST})
     string(TOLOWER ${FAMILY} _family_name)
     set(TEMPLATE_SOURCE "${PROJECT_BINARY_DIR}/${_template_alias}/main.c")
 
+    execute_process(
+            COMMAND "${PROJECT_SOURCE_DIR}/../tools/find_dependencies.py" "${_template_name}.jinja2"
+            OUTPUT_VARIABLE _template_dependencies
+    )
+    list(TRANSFORM _template_dependencies REPLACE "^(.+)$" "${PROJECT_SOURCE_DIR}/../templates/\\1" OUTPUT_VARIABLE _template_dependencies)
+
     add_custom_command(
             OUTPUT ${TEMPLATE_SOURCE}
             COMMAND "${PROJECT_SOURCE_DIR}/../tools/make_example.py"
@@ -118,13 +124,13 @@ foreach(TEMPLATE_NAME ${TEMPLATES_LIST})
                     --output=${PROJECT_BINARY_DIR}
                     --platform=${_platform_name}
                     ${_template_name}
-            DEPENDS "${PROJECT_SOURCE_DIR}/../templates/${_template_name}.jinja2"
+            DEPENDS ${_template_dependencies}
     )
 
     add_executable("${_template_alias}" ${TEMPLATE_SOURCE})
-    target_compile_definitions("${_template_alias}" PRIVATE "${BUNDLE_DEFS}")
+    target_compile_definitions("${_template_alias}" PRIVATE ${BUNDLE_DEFS})
     target_link_options("${_template_alias}" PRIVATE SHELL:${FLAGS_CPU} SHELL:${FLAGS_LINKER})
-    target_link_libraries("${_template_alias}" PRIVATE helpers shared)
+    target_link_libraries("${_template_alias}" PRIVATE helpers shared ${BUNDLE_LIBS})
 
     if(${CMAKE_SYSTEM_NAME} STREQUAL "Generic")
         if(USE_BIN)
@@ -154,9 +160,9 @@ foreach(EXAMPLE_NAME ${EXAMPLES_LIST})
 
     file(GLOB_RECURSE EXAMPLE_SOURCES "${BUNDLE}/${EXAMPLE_NAME}/*.c")
     add_executable("${EXAMPLE_NAME}" ${EXAMPLE_SOURCES})
-    target_compile_definitions("${EXAMPLE_NAME}" PRIVATE "${BUNDLE_DEFS}")
+    target_compile_definitions("${EXAMPLE_NAME}" PRIVATE ${BUNDLE_DEFS})
     target_link_options("${EXAMPLE_NAME}" PRIVATE SHELL:${FLAGS_CPU} SHELL:${FLAGS_LINKER})
-    target_link_libraries("${EXAMPLE_NAME}" PRIVATE helpers)
+    target_link_libraries("${EXAMPLE_NAME}" PRIVATE helpers ${BUNDLE_LIBS})
 
     if(TARGET shared)
         target_link_libraries("${EXAMPLE_NAME}" PRIVATE shared)

@@ -1,0 +1,278 @@
+{% extends 'sensor_base.jinja2' %}
+
+{% block includes %}
+/*
+ * {{group.name}}/attitude_dcm/main.c
+ * Automatically generated file
+ */
+
+#include "math_helpers.h"
+#include <dpm/sensors/hmc5883.h>
+#include <dpm/sensors/mpu60xx.h>
+#include <math.h>
+{% endblock %}
+
+{% block declarations %}
+#define SAMPLE_RATE 100
+
+enum
+{
+  SENSOR_TAG_ACCEL,
+  SENSOR_TAG_GYRO,
+  SENSOR_TAG_MAG,
+
+  SENSOR_COUNT
+};
+
+struct Filter
+{
+  Matrix3x3f state;
+
+  float acceleration[3];
+  float heading[3];
+  float velocity[3];
+
+  float accKP;
+  float magKP;
+  float velKP;
+  float dt;
+
+  struct
+  {
+    bool acc;
+    bool mag;
+    bool vel;
+
+    bool first;
+  } ready;
+};
+{% endblock %}
+
+{% block definitions %}
+static struct Filter filter;
+
+static void filterGetAngles(const struct Filter *instance, float *angles)
+{
+  const Vector3f * const z = &instance->state.z;
+  const float tmp = sqrtf(z->y * z->y + z->z * z->z);
+
+  angles[0] = atan2f(instance->state.z.y, instance->state.z.z);
+  angles[1] = atan2f(instance->state.z.x, tmp);
+  angles[2] = atan2f(instance->state.y.x, instance->state.x.x);
+}
+
+static void filterInit(struct Filter *instance)
+{
+  instance->accKP = 0.01f;
+  instance->magKP = 0.10f;
+  instance->velKP = 1.00f;
+  instance->dt = 1.0f / (float)SAMPLE_RATE;
+
+  instance->acceleration[0] = 0.0f;
+  instance->acceleration[1] = 0.0f;
+  instance->acceleration[2] = 1.0f;
+
+  instance->heading[0] = 1.0f;
+  instance->heading[1] = 0.0f;
+  instance->heading[2] = 0.0f;
+
+  instance->velocity[0] = 0.0f;
+  instance->velocity[1] = 0.0f;
+  instance->velocity[2] = 0.0f;
+
+  instance->state.x = (Vector3f){1.0f, 0.0f, 0.0f};
+  instance->state.y = (Vector3f){0.0f, 1.0f, 0.0f};
+  instance->state.z = (Vector3f){0.0f, 0.0f, 1.0f};
+
+  instance->ready.acc = false;
+  instance->ready.mag = false;
+  instance->ready.vel = false;
+  instance->ready.first = true;
+}
+
+static void filterUpdate(struct Filter *instance)
+{
+  const Vector3f acc = {
+      instance->acceleration[0],
+      instance->acceleration[1],
+      instance->acceleration[2]
+  };
+  const Vector3f mag = {
+      instance->heading[0],
+      instance->heading[1],
+      instance->heading[2]
+  };
+  const Vector3f vel = {
+      instance->velocity[0],
+      instance->velocity[1],
+      instance->velocity[2]
+  };
+
+  Vector3f x;
+  Vector3f y;
+  Vector3f z;
+
+  if (instance->ready.first)
+  {
+    if (!instance->ready.acc || !instance->ready.mag || !instance->ready.vel)
+      return;
+
+    instance->ready.first = false;
+
+    z = acc;
+    vec3fNormalize(&z);
+
+    vec3fMakeOrthogonal(&z, &mag, &x);
+    vec3fNormalize(&x);
+
+    vec3fCrossProduct(&z, &x, &y);
+    vec3fNormalize(&y);
+  }
+  else
+  {
+    float weight = instance->velKP;
+    Vector3f w;
+
+    vec3fMul(&vel, instance->dt * instance->velKP, &w);
+
+    if (instance->ready.acc)
+    {
+      Vector3f va;
+
+      vec3fCrossProduct(&acc, &instance->state.z, &va);
+      vec3fMul(&va, instance->accKP, &va);
+      vec3fAdd(&w, &va, &w);
+      weight += instance->accKP;
+    }
+
+    if (instance->ready.mag)
+    {
+      Vector3f vm;
+
+      vec3fMakeOrthogonal(&instance->state.z, &mag, &vm);
+      vec3fCrossProduct(&vm, &instance->state.x, &vm);
+      vec3fMul(&vm, instance->magKP, &vm);
+      vec3fAdd(&w, &vm, &w);
+      weight += instance->magKP;
+    }
+
+    vec3fMul(&w, 1.0f / weight, &w);
+
+    /* Z axis */
+    vec3fCrossProduct(&instance->state.z, &w, &z);
+    vec3fAdd(&instance->state.z, &z, &z);
+    vec3fNormalize(&z);
+
+    /* X axis */
+    vec3fCrossProduct(&instance->state.x, &w, &x);
+    vec3fAdd(&instance->state.x, &x, &x);
+    vec3fMakeOrthogonal(&z, &x, &x);
+    vec3fNormalize(&x);
+
+    /* Y axis */
+    vec3fCrossProduct(&z, &x, &y);
+    vec3fNormalize(&y);
+  }
+
+  instance->state.x = x;
+  instance->state.y = y;
+  instance->state.z = z;
+
+  instance->ready.acc = false;
+  instance->ready.mag = false;
+  instance->ready.vel = false;
+}
+
+static void filterUpdateTask(void *argument)
+{
+  struct Context * const context = argument;
+  const unsigned long timestamp = timerGetValue(context->chrono);
+  float angles[3];
+  char text[64];
+
+  filterUpdate(&filter);
+  filterGetAngles(&filter, angles);
+
+  angles[0] *= RAD_TO_DEG;
+  angles[1] *= RAD_TO_DEG;
+  angles[2] *= RAD_TO_DEG;
+
+  const size_t count = sprintf(text, "%lu rpy: %i %i %i\r\n", timestamp,
+      (int)angles[0], (int)angles[1], (int)angles[2]);
+
+  pinToggle(context->ready);
+  ifWrite(context->serial, text, count);
+}
+{% endblock %}
+
+{% block process %}
+  switch (context->types[tag])
+  {
+    case SENSOR_TYPE_ACCEL:
+      applyDataFormatFloatArray(raw, format, filter.acceleration);
+      filter.ready.acc = true;
+      break;
+
+    case SENSOR_TYPE_GYRO:
+      applyDataFormatFloatArray(raw, format, filter.velocity);
+      filter.ready.vel = true;
+      break;
+
+    case SENSOR_TYPE_MAG:
+      applyDataFormatFloatArray(raw, format, filter.heading);
+      filter.ready.mag = true;
+      break;
+
+    default:
+      break;
+  }
+
+  if (filter.ready.vel)
+  {
+    wqAdd(WQ_DEFAULT, filterUpdateTask, context);
+  }
+{% endblock %}
+
+{% block setup %}
+  filterInit(&filter);
+
+  struct Interrupt * const event0 =
+      boardSetupSensorEvent0(INPUT_RISING, PIN_PULLDOWN);
+  struct Interrupt * const event1 =
+      boardSetupSensorEvent1(INPUT_RISING, PIN_PULLDOWN);
+  struct Interface * const i2c = boardSetupI2C();
+
+  const struct MPU60XXConfig mpuConfig = {
+      .bus = i2c,
+      .event = event0,
+      .timer = MAKE_SENSOR_TIMER(),
+      .address = 0x68,
+      .rate = 400000,
+      .cs = 0,
+      .sampleRate = SAMPLE_RATE,
+      .accelScale = MPU60XX_ACCEL_16,
+      .gyroScale = MPU60XX_GYRO_2000
+  };
+  struct MPU60XX * const mpu = init(MPU60XX, &mpuConfig);
+  assert(mpu != NULL);
+
+  ATTACH_SENSOR(SENSOR_TAG_ACCEL, SENSOR_TYPE_ACCEL,
+      mpu60xxMakeAccelerometer(mpu));
+  ATTACH_SENSOR(SENSOR_TAG_GYRO, SENSOR_TYPE_GYRO,
+      mpu60xxMakeGyroscope(mpu));
+
+  const struct HMC5883Config magConfig = {
+      .bus = i2c,
+      .event = event1,
+      .timer = MAKE_SENSOR_TIMER(),
+      .address = 0x1E,
+      .rate = 400000,
+      .frequency = HMC5883_FREQUENCY_75HZ,
+      .gain = HMC5883_GAIN_880MGA,
+      .oversampling = HMC5883_OVERSAMPLING_DEFAULT
+  };
+  struct HMC5883 * const mag = init(HMC5883, &magConfig);
+  assert(mag != NULL);
+
+  ATTACH_SENSOR(SENSOR_TAG_MAG, SENSOR_TYPE_MAG, mag);
+{% endblock %}

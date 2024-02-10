@@ -9,11 +9,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 /*----------------------------------------------------------------------------*/
-float applyDataFormatFloat(int32_t raw, const DataFormat *format)
-{
-  return (float)raw / (1 << format->q);
-}
-/*----------------------------------------------------------------------------*/
 DecimalNumber applyDataFormatDecimal(int32_t raw, const DataFormat *format,
     unsigned int multiplier)
 {
@@ -27,6 +22,45 @@ DecimalNumber applyDataFormatDecimal(int32_t raw, const DataFormat *format,
   result.decimal = result.decimal * multiplier / (1 << format->q);
 
   return result;
+}
+/*----------------------------------------------------------------------------*/
+void applyDataFormatDecimalArray(const void *values, const DataFormat *format,
+    DecimalNumber *output, unsigned int multiplier)
+{
+  const unsigned int width = format->i + format->q;
+  assert(width == 8 || width == 16 || width == 32);
+
+  for (size_t index = 0; index < format->n; ++index)
+  {
+    const int32_t value =
+        (width == 8) ? *((const int8_t *)values + index)
+        : (width == 16) ? *((const int16_t *)values + index)
+        : *((const int32_t *)values + index);
+
+    output[index] = applyDataFormatDecimal(value, format, multiplier);
+  }
+}
+/*----------------------------------------------------------------------------*/
+float applyDataFormatFloat(int32_t raw, const DataFormat *format)
+{
+  return (float)raw / (1 << format->q);
+}
+/*----------------------------------------------------------------------------*/
+void applyDataFormatFloatArray(const void *values, const DataFormat *format,
+    float *output)
+{
+  const unsigned int width = format->i + format->q;
+  assert(width == 8 || width == 16 || width == 32);
+
+  for (size_t index = 0; index < format->n; ++index)
+  {
+    const int32_t value =
+        (width == 8) ? *((const int8_t *)values + index)
+        : (width == 16) ? *((const int16_t *)values + index)
+        : *((const int32_t *)values + index);
+
+    output[index] = applyDataFormatFloat(value, format);
+  }
 }
 /*----------------------------------------------------------------------------*/
 DataFormat parseDataFormat(const char *str)

@@ -43,7 +43,7 @@ extern unsigned long _stext;
 
 static struct ClockSettings sharedClockSettings
     __attribute__((section(".shared")));
-static const char productStringEn[] = "LPC43xx M4 DFU to NOR";
+static const char productStringEn[] = "LPC43xx M4 DFU for NOR";
 
 struct Board instance;
 /*----------------------------------------------------------------------------*/
@@ -80,6 +80,8 @@ static void boardDeinit(struct Board *board)
 {
   usbDevSetConnected(board->dfuPackage.usb, false);
 
+  interruptDisable(board->buttonPackage.button);
+  timerDisable(board->timerPackage.timer);
   deinit(board->dfuPackage.bridge);
   deinit(board->dfuPackage.dfu);
   deinit(board->dfuPackage.usb);
@@ -87,6 +89,8 @@ static void boardDeinit(struct Board *board)
   deinit(board->buttonPackage.button);
   deinit(board->buttonPackage.timer);
   deinit(board->buttonPackage.event);
+  deinit(board->timerPackage.factory);
+  deinit(board->timerPackage.timer);
   deinit(board->memoryPackage.flash);
   /* SPIFI driver should be left in initialized state */
 

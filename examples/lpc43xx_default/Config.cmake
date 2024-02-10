@@ -12,6 +12,8 @@ math(EXPR ADDRESS_SDRAM "0x28000000")
 math(EXPR ADDRESS_SPIFI "0x14000000")
 math(EXPR ADDRESS_SRAM0 "0x10000000")
 
+set(BUNDLE_LIBS "m")
+
 # Linker script settings
 if(TARGET_NOR)
     if(USE_DFU)
@@ -41,11 +43,16 @@ endif()
 
 # Define template list
 set(TEMPLATES_LIST
+        attitude_dcm
         display_tft
         display_tft_spi
         i2c_m24
-        sensor_mpu6050
+        sensor_complex
+        sensor_hmc5883
+        sensor_mpu6000
+        sensor_mpu6000_spi=sensor_mpu6000:USE_SPI=true
         sensor_ms5607
+        sensor_ms5607_spi=sensor_ms5607:USE_SPI=true
         sensor_sht20
         sensor_xpt2046
         spim_w25

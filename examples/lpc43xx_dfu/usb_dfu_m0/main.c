@@ -39,7 +39,7 @@ static void stopFirmwareTask(void *);
 /*----------------------------------------------------------------------------*/
 static struct ClockSettings sharedClockSettings
     __attribute__((section(".shared")));
-static const char productStringEn[] = "LPC43xx M0 DFU to Flash";
+static const char productStringEn[] = "LPC43xx M0 DFU for Flash";
 
 struct Board instance;
 /*----------------------------------------------------------------------------*/

@@ -1,0 +1,65 @@
+{% extends 'sensor_base.jinja2' %}
+
+{% block includes %}
+/*
+ * {{group.name}}/sensor_mpu6000/main.c
+ * Automatically generated file
+ */
+
+#include <dpm/sensors/mpu60xx.h>
+{% endblock %}
+
+{% block declarations %}
+enum
+{
+  SENSOR_TAG_ACCEL,
+  SENSOR_TAG_GYRO,
+  SENSOR_TAG_THERMO,
+
+  SENSOR_COUNT
+};
+{% endblock %}
+
+{% block setup %}
+  struct Interrupt * const event =
+      boardSetupSensorEvent(INPUT_RISING, PIN_PULLDOWN);
+
+{% if config.USE_SPI is defined and config.USE_SPI %}
+  struct Interface * const spi = boardSetupSpi();
+
+  const struct MPU60XXConfig mpuConfig = {
+      .bus = spi,
+      .event = event,
+      .timer = MAKE_SENSOR_TIMER(),
+      .address = 0,
+      .rate = 1000000,
+      .cs = BOARD_SENSOR_CS,
+      .sampleRate = 100,
+      .accelScale = MPU60XX_ACCEL_16,
+      .gyroScale = MPU60XX_GYRO_2000
+  };
+{% else %}
+  struct Interface * const i2c = boardSetupI2C();
+
+  const struct MPU60XXConfig mpuConfig = {
+      .bus = i2c,
+      .event = event,
+      .timer = MAKE_SENSOR_TIMER(),
+      .address = 0x68,
+      .rate = 400000,
+      .cs = 0,
+      .sampleRate = 100,
+      .accelScale = MPU60XX_ACCEL_16,
+      .gyroScale = MPU60XX_GYRO_2000
+  };
+{% endif %}
+  struct MPU60XX * const mpu = init(MPU60XX, &mpuConfig);
+  assert(mpu != NULL);
+
+  ATTACH_SENSOR(SENSOR_TAG_ACCEL, SENSOR_TYPE_ACCEL,
+      mpu60xxMakeAccelerometer(mpu));
+  ATTACH_SENSOR(SENSOR_TAG_GYRO, SENSOR_TYPE_GYRO,
+      mpu60xxMakeGyroscope(mpu));
+  ATTACH_SENSOR(SENSOR_TAG_THERMO, SENSOR_TYPE_THERMO,
+      mpu60xxMakeThermometer(mpu));
+{% endblock %}

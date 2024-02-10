@@ -29,7 +29,10 @@ typedef struct
 BEGIN_DECLS
 
 DecimalNumber applyDataFormatDecimal(int32_t, const DataFormat *, unsigned int);
+void applyDataFormatDecimalArray(const void *, const DataFormat *,
+    DecimalNumber *, unsigned int);
 float applyDataFormatFloat(int32_t, const DataFormat *);
+void applyDataFormatFloatArray(const void *, const DataFormat *, float *);
 DataFormat parseDataFormat(const char *);
 size_t printFormattedValues(const void *, const DataFormat *, bool,
     unsigned int, char *);

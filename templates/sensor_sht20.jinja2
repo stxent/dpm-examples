@@ -1,223 +1,30 @@
+{% extends 'sensor_base.jinja2' %}
+
+{% block includes %}
 /*
  * {{group.name}}/sensor_sht20/main.c
  * Automatically generated file
  */
 
-#include "board.h"
-#include "sensor_helpers.h"
-#include <dpm/sensors/sensor_handler.h>
 #include <dpm/sensors/sht2x.h>
-#include <halm/timer.h>
-#include <xcore/interface.h>
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-/*----------------------------------------------------------------------------*/
+{% endblock %}
+
+{% block declarations %}
 enum
 {
   SENSOR_TAG_HYGRO,
-  SENSOR_TAG_THERMO
+  SENSOR_TAG_THERMO,
+
+  SENSOR_COUNT
 };
+{% endblock %}
 
-struct Context
-{
-  struct Interface *serial;
-  struct Sensor *sensors[2];
-  DataFormat formats[2];
-  struct Timer *timer;
-  struct Pin led;
-
-  bool enabled[2];
-  bool automatic;
-  bool manual;
-  bool queued;
-};
-/*----------------------------------------------------------------------------*/
-static void onSampleRequest(void *);
-static void onSensorData(void *, int, const void *, size_t);
-static void onSerialEvent(void *);
-static void serialHandlerTask(void *);
-/*----------------------------------------------------------------------------*/
-static void onSampleRequest(void *argument)
-{
-  struct Context * const context = argument;
-
-  for (size_t i = 0; i < ARRAY_SIZE(context->sensors); ++i)
-  {
-    if (context->enabled[i])
-      sensorSample(context->sensors[i]);
-  }
-}
-/*----------------------------------------------------------------------------*/
-static void onSensorData(void *argument, int tag, const void *buffer,
-    size_t length)
-{
-  struct Context * const context = argument;
-  const DataFormat * const format = &context->formats[tag];
-  int32_t raw;
-
-  assert(format->n == 1);
-
-  if (tag == SENSOR_TAG_HYGRO)
-  {
-    int16_t bufferValue;
-
-    assert(length == sizeof(bufferValue));
-    memcpy(&bufferValue, buffer, length);
-    raw = bufferValue;
-  }
-  else
-  {
-    int32_t bufferValue;
-
-    assert(length == sizeof(bufferValue));
-    memcpy(&bufferValue, buffer, length);
-    raw = bufferValue;
-  }
-
-  size_t count = 0;
-  char text[64];
-
-  if (tag == SENSOR_TAG_HYGRO)
-  {
-    count += sprintf(text, "H:  ");
-    count += printFormattedValues(&raw, format, false, 3, text + count);
-    count += sprintf(text + count, " %%\r\n");
-
-    pinToggle(context->led);
-  }
-  else
-  {
-    count += sprintf(text, "T: ");
-    count += printFormattedValues(&raw, format, true, 3, text + count);
-    count += sprintf(text + count, " C\r\n");
-  }
-
-  ifWrite(context->serial, text, count);
-}
-/*----------------------------------------------------------------------------*/
-static void onSerialEvent(void *argument)
-{
-  struct Context * const context = argument;
-
-  if (!context->queued)
-  {
-    if (wqAdd(WQ_DEFAULT, serialHandlerTask, argument) == E_OK)
-      context->queued = true;
-  }
-}
-/*----------------------------------------------------------------------------*/
-static void serialHandlerTask(void *argument)
-{
-  static const char HELP_MESSAGE[] =
-      "Shortcuts:\r\n"
-      "\t1: toggle hygrometer\r\n"
-      "\t2: toggle thermometer\r\n"
-      "\ta: automatic mode\r\n"
-      "\th: show this help message\r\n"
-      "\tm: time-triggered mode\r\n"
-      "\tr: reset sensor\r\n"
-      "\ts: read sample\r\n";
-
-  struct Context * const context = argument;
-  char buffer[BOARD_UART_BUFFER];
-  size_t count;
-
-  context->queued = false;
-
-  while ((count = ifRead(context->serial, buffer, sizeof(buffer))) > 0)
-  {
-    for (size_t position = 0; position < count; ++position)
-    {
-      switch (buffer[position])
-      {
-        case '1':
-        case '2':
-        {
-          const size_t i = buffer[position] - '1';
-
-          context->enabled[i] = !context->enabled[i];
-          break;
-        }
-
-        case 'a':
-          if (context->automatic)
-          {
-            for (size_t i = 0; i < ARRAY_SIZE(context->sensors); ++i)
-              sensorStop(context->sensors[i]);
-          }
-          else
-          {
-            for (size_t i = 0; i < ARRAY_SIZE(context->sensors); ++i)
-            {
-              if (context->enabled[i])
-                sensorStart(context->sensors[i]);
-            }
-          }
-          context->automatic = !context->automatic;
-          break;
-
-        case 'h':
-          ifWrite(context->serial, HELP_MESSAGE, sizeof(HELP_MESSAGE));
-          break;
-
-        case 'm':
-          if (context->manual)
-            timerDisable(context->timer);
-          else
-            timerEnable(context->timer);
-          context->manual = !context->manual;
-          break;
-
-        case 'r':
-          for (size_t i = 0; i < ARRAY_SIZE(context->sensors); ++i)
-          {
-            if (context->enabled[i])
-              sensorReset(context->sensors[i]);
-          }
-          break;
-
-        case 's':
-        case ' ':
-          for (size_t i = 0; i < ARRAY_SIZE(context->sensors); ++i)
-          {
-            if (context->enabled[i])
-              sensorSample(context->sensors[i]);
-          }
-          context->automatic = false;
-          break;
-      }
-    }
-  }
-}
-/*----------------------------------------------------------------------------*/
-int main(void)
-{
-  static const uint32_t SERIAL_RATE = 500000;
-
-  boardSetupClockPll();
-  boardSetupDefaultWQ();
-
-  const struct Pin led = pinInit(BOARD_LED_0);
-  pinOutput(led, BOARD_LED_INV);
-
-  struct Interface * const serial = boardSetupSerial();
-  ifSetParam(serial, IF_RATE, &SERIAL_RATE);
-
-  struct Timer * const sampleTimer = boardSetupTimer();
-  timerSetOverflow(sampleTimer, timerGetFrequency(sampleTimer) / 2);
-
-  struct Timer * const sensorTimer = boardSetupTimerAux0();
+{% block setup %}
   struct Interface * const i2c = boardSetupI2C();
-
-  struct SensorHandler sh;
-  shInit(&sh, 4);
-  shSetUpdateWorkQueue(&sh, WQ_DEFAULT);
 
   const struct SHT2XConfig hygroConfig = {
       .bus = i2c,
-      .timer = sensorTimer,
+      .timer = MAKE_SENSOR_TIMER(),
       .address = 0x40,
       .rate = 400000,
       .resolution = SHT2X_RESOLUTION_DEFAULT
@@ -225,43 +32,7 @@ int main(void)
   struct SHT2X * const hygro = init(SHT2X, &hygroConfig);
   assert(hygro != NULL);
 
-  shAttach(&sh, hygro, SENSOR_TAG_HYGRO);
-  sensorReset(hygro);
-
-  struct SHT2XThermometer * const thermo = sht2xMakeThermometer(hygro);
-  assert(thermo != NULL);
-
-  shAttach(&sh, thermo, SENSOR_TAG_THERMO);
-  sensorReset(thermo);
-  sensorStart(thermo);
-
-  struct Context context = {
-      .serial = serial,
-      .sensors = {
-          (struct Sensor *)hygro,
-          (struct Sensor *)thermo,
-      },
-      .formats = {
-          parseDataFormat(sensorGetFormat(hygro)),
-          parseDataFormat(sensorGetFormat(thermo))
-      },
-      .timer = sampleTimer,
-      .led = led,
-      .enabled = {
-          true,
-          true
-      },
-      .automatic = false,
-      .manual = false,
-      .queued = false
-  };
-
-  ifSetCallback(serial, onSerialEvent, &context);
-  shSetDataCallback(&sh, onSensorData, &context);
-  timerSetCallback(sampleTimer, onSampleRequest, &context);
-
-  /* Start queue handler */
-  wqStart(WQ_DEFAULT);
-
-  return 0;
-}
+  ATTACH_SENSOR(SENSOR_TAG_HYGRO, SENSOR_TYPE_HYGRO, hygro);
+  ATTACH_SENSOR(SENSOR_TAG_THERMO, SENSOR_TYPE_THERMO,
+      sht2xMakeThermometer(hygro));
+{% endblock %}

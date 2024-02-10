@@ -1,0 +1,86 @@
+{% extends 'sensor_base.jinja2' %}
+
+{% block includes %}
+/*
+ * {{group.name}}/sensor_complex/main.c
+ * Automatically generated file
+ */
+
+#include <dpm/sensors/hmc5883.h>
+#include <dpm/sensors/mpu60xx.h>
+#include <dpm/sensors/ms56xx.h>
+{% endblock %}
+
+{% block declarations %}
+enum
+{
+  SENSOR_TAG_ACCEL,
+  SENSOR_TAG_GYRO,
+  SENSOR_TAG_GYRO_THERMO,
+  SENSOR_TAG_BARO,
+  SENSOR_TAG_BARO_THERMO,
+  SENSOR_TAG_MAG,
+
+  SENSOR_COUNT
+};
+{% endblock %}
+
+{% block setup %}
+  struct Interrupt * const event0 =
+      boardSetupSensorEvent0(INPUT_RISING, PIN_PULLDOWN);
+  struct Interrupt * const event1 =
+      boardSetupSensorEvent1(INPUT_RISING, PIN_PULLDOWN);
+  struct Interface * const i2c = boardSetupI2C();
+
+  const struct MPU60XXConfig mpuConfig = {
+      .bus = i2c,
+      .event = event0,
+      .timer = MAKE_SENSOR_TIMER(),
+      .address = 0x68,
+      .rate = 400000,
+      .cs = 0,
+      .sampleRate = 100,
+      .accelScale = MPU60XX_ACCEL_16,
+      .gyroScale = MPU60XX_GYRO_2000
+  };
+  struct MPU60XX * const mpu = init(MPU60XX, &mpuConfig);
+  assert(mpu != NULL);
+
+  ATTACH_SENSOR(SENSOR_TAG_ACCEL, SENSOR_TYPE_ACCEL,
+      mpu60xxMakeAccelerometer(mpu));
+  ATTACH_SENSOR(SENSOR_TAG_GYRO, SENSOR_TYPE_GYRO,
+      mpu60xxMakeGyroscope(mpu));
+  ATTACH_SENSOR(SENSOR_TAG_GYRO_THERMO, SENSOR_TYPE_THERMO,
+      mpu60xxMakeThermometer(mpu));
+
+  const struct MS56XXConfig baroConfig = {
+      .bus = i2c,
+      .timer = MAKE_SENSOR_TIMER(),
+      .address = 0x77,
+      .rate = 400000,
+      .cs = 0,
+      .oversampling = MS56XX_OVERSAMPLING_DEFAULT,
+      .subtype = MS56XX_TYPE_5607
+  };
+  struct MS56XX * const baro = init(MS56XX, &baroConfig);
+  assert(baro != NULL);
+
+  ATTACH_SENSOR(SENSOR_TAG_BARO, SENSOR_TYPE_BARO, baro);
+  ATTACH_SENSOR(SENSOR_TAG_BARO_THERMO, SENSOR_TYPE_THERMO,
+      ms56xxMakeThermometer(baro));
+
+  const struct HMC5883Config magConfig = {
+      .bus = i2c,
+      .event = event1,
+      .timer = MAKE_SENSOR_TIMER(),
+      .address = 0x1E,
+      .rate = 400000,
+      .frequency = HMC5883_FREQUENCY_75HZ,
+      .gain = HMC5883_GAIN_880MGA,
+      .oversampling = HMC5883_OVERSAMPLING_DEFAULT
+  };
+  struct HMC5883 * const mag = init(HMC5883, &magConfig);
+  assert(mag != NULL);
+
+  ATTACH_SENSOR(SENSOR_TAG_MAG, SENSOR_TYPE_MAG, mag);
+{% endblock %}

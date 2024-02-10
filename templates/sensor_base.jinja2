@@ -1,0 +1,355 @@
+{% block includes %}{% endblock %}
+
+#include "board.h"
+#include "sensor_helpers.h"
+#include <dpm/sensors/sensor_handler.h>
+#include <halm/generic/i2c.h>
+#include <halm/generic/timer_factory.h>
+#include <xcore/interface.h>
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+/*----------------------------------------------------------------------------*/
+#define ATTACH_SENSOR(tag, type, object) \
+    do \
+    { \
+      context.sensors[tag] = (struct Sensor *)object; \
+      assert(context.sensors[tag] != NULL); \
+      context.types[tag] = type; \
+      shAttach(&sh, context.sensors[tag], tag); \
+    } \
+    while (false)
+
+#define ENABLE_I2C_RECOVERY(bus) \
+    do \
+    { \
+      context.i2c = bus; \
+    } \
+    while (false)
+
+#define MAKE_SENSOR_TIMER(...) timerFactoryCreate(sensorTimerFactory)
+
+enum SensorType
+{
+  SENSOR_TYPE_ACCEL,
+  SENSOR_TYPE_BARO,
+  SENSOR_TYPE_GYRO,
+  SENSOR_TYPE_HYGRO,
+  SENSOR_TYPE_MAG,
+  SENSOR_TYPE_THERMO,
+  SENSOR_TYPE_CUSTOM
+} __attribute__((packed));
+/*----------------------------------------------------------------------------*/
+{% block declarations required %}{% endblock %}
+/*----------------------------------------------------------------------------*/
+struct Context
+{
+  struct Interface *i2c;
+  struct Interface *serial;
+  struct Sensor *sensors[SENSOR_COUNT];
+  DataFormat formats[SENSOR_COUNT];
+  struct Timer *chrono;
+  struct Timer *timer;
+  struct Pin error;
+  struct Pin ready;
+
+  enum SensorType types[SENSOR_COUNT];
+  bool enabled[SENSOR_COUNT];
+  bool automatic;
+  bool manual;
+  bool queued;
+};
+/*----------------------------------------------------------------------------*/
+static void onSampleRequest(void *);
+static void onSensorData(void *, int, const void *, size_t);
+static void onSensorError(void *, int, enum SensorResult);
+static void onSerialEvent(void *);
+static void serialHandlerTask(void *);
+/*----------------------------------------------------------------------------*/
+{% block definitions %}{% endblock %}
+/*----------------------------------------------------------------------------*/
+static void onSampleRequest(void *argument)
+{
+  struct Context * const context = argument;
+
+  for (size_t i = 0; i < SENSOR_COUNT; ++i)
+  {
+    if (context->enabled[i])
+      sensorSample(context->sensors[i]);
+  }
+}
+/*----------------------------------------------------------------------------*/
+static void onSensorData(void *argument, int tag, const void *buffer,
+    size_t length)
+{
+  struct Context * const context = argument;
+  const DataFormat * const format = &context->formats[tag];
+  uint8_t raw[format->n * (format->i + format->q) / 8];
+
+  memcpy(&raw, buffer, length);
+
+{% block process %}{% endblock %}
+{% if not self.process() %}
+  const unsigned long timestamp = timerGetValue(context->chrono);
+  size_t count = 0;
+  char text[64];
+
+  switch (context->types[tag])
+  {
+    case SENSOR_TYPE_ACCEL:
+      count += sprintf(text, "%lu a: ", timestamp);
+      count += printFormattedValues(raw, format, true, 3, text + count);
+      count += sprintf(text + count, " g\r\n");
+      break;
+
+    case SENSOR_TYPE_BARO:
+      count += sprintf(text, "P:  ");
+      count += printFormattedValues(raw, format, false, 3, text + count);
+      count += sprintf(text + count, " Pa\r\n");
+      break;
+
+    case SENSOR_TYPE_GYRO:
+      count += sprintf(text, "%lu w: ", timestamp);
+      count += printFormattedValues(raw, format, true, 3, text + count);
+      count += sprintf(text + count, " rad/s\r\n");
+      break;
+
+    case SENSOR_TYPE_HYGRO:
+      count += sprintf(text, "H:  ");
+      count += printFormattedValues(raw, format, false, 3, text + count);
+      count += sprintf(text + count, " %%\r\n");
+      break;
+
+    case SENSOR_TYPE_MAG:
+      count += sprintf(text, "%lu H: ", timestamp);
+      count += printFormattedValues(raw, format, true, 3, text + count);
+      count += sprintf(text + count, " Ga\r\n");
+      break;
+
+    case SENSOR_TYPE_THERMO:
+      count += sprintf(text, "%lu T: ", timestamp);
+      count += printFormattedValues(raw, format, true, 3, text + count);
+      count += sprintf(text + count, " C\r\n");
+      break;
+
+    case SENSOR_TYPE_CUSTOM:
+      count += printFormattedValues(raw, format, false, 0, text);
+      count += sprintf(text + count, "\r\n");
+      break;
+  }
+
+  if (!tag)
+    pinToggle(context->ready);
+
+  ifWrite(context->serial, text, count);
+{% endif %}
+}
+/*----------------------------------------------------------------------------*/
+static void onSensorError(void *argument, int tag __attribute__((unused)),
+    enum SensorResult error)
+{
+  struct Context * const context = argument;
+
+  if (context->i2c != NULL && error == SENSOR_INTERFACE_TIMEOUT)
+    ifSetParam(context->i2c, IF_I2C_BUS_RECOVERY, NULL);
+
+  pinToggle(context->error);
+}
+/*----------------------------------------------------------------------------*/
+static void onSerialEvent(void *argument)
+{
+  struct Context * const context = argument;
+
+  if (!context->queued)
+  {
+    if (wqAdd(WQ_DEFAULT, serialHandlerTask, argument) == E_OK)
+      context->queued = true;
+  }
+}
+/*----------------------------------------------------------------------------*/
+static void serialHandlerTask(void *argument)
+{
+static const char HELP_MESSAGE[] =
+      "Shortcuts:\r\n"
+      "\t1..9: toggle sensor N\r\n"
+      "\ta: automatic mode\r\n"
+      "\th: show this help message\r\n"
+      "\tl: enable low-power mode\r\n"
+      "\tm: time-triggered mode\r\n"
+      "\tr: reset sensor\r\n"
+      "\ts: read sample\r\n";
+
+  struct Context * const context = argument;
+  char buffer[BOARD_UART_BUFFER];
+  size_t count;
+
+  context->queued = false;
+
+  while ((count = ifRead(context->serial, buffer, sizeof(buffer))) > 0)
+  {
+    for (size_t position = 0; position < count; ++position)
+    {
+      switch (buffer[position])
+      {
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':
+        {
+          const size_t i = buffer[position] - '1';
+
+          if (i < SENSOR_COUNT && context->sensors[i] != NULL)
+            context->enabled[i] = !context->enabled[i];
+          break;
+        }
+
+        case 'a':
+          if (context->automatic)
+          {
+            for (size_t i = 0; i < SENSOR_COUNT; ++i)
+            {
+              if (context->sensors[i] != NULL)
+                sensorStop(context->sensors[i]);
+            }
+          }
+          else
+          {
+            for (size_t i = 0; i < SENSOR_COUNT; ++i)
+            {
+              if (context->enabled[i])
+                sensorStart(context->sensors[i]);
+            }
+          }
+          context->automatic = !context->automatic;
+          break;
+
+        case 'h':
+          ifWrite(context->serial, HELP_MESSAGE, sizeof(HELP_MESSAGE));
+          break;
+
+        case 'l':
+          for (size_t i = 0; i < SENSOR_COUNT; ++i)
+          {
+            if (context->enabled[i])
+              sensorSuspend(context->sensors[i]);
+          }
+          context->automatic = false;
+          break;
+
+        case 'm':
+          if (context->manual)
+            timerDisable(context->timer);
+          else
+            timerEnable(context->timer);
+          context->manual = !context->manual;
+          break;
+
+        case 'r':
+          pinWrite(context->error, BOARD_LED_INV);
+          pinWrite(context->ready, BOARD_LED_INV);
+
+          for (size_t i = 0; i < SENSOR_COUNT; ++i)
+          {
+            if (context->enabled[i])
+              sensorReset(context->sensors[i]);
+          }
+          break;
+
+        case 's':
+        case ' ':
+          for (size_t i = 0; i < SENSOR_COUNT; ++i)
+          {
+            if (context->enabled[i])
+              sensorSample(context->sensors[i]);
+          }
+          context->automatic = false;
+          break;
+      }
+    }
+  }
+}
+/*----------------------------------------------------------------------------*/
+int main(void)
+{
+  static const uint32_t SERIAL_RATE = 500000;
+
+  boardSetupClockPll();
+  boardSetupDefaultWQ();
+
+  const struct Pin ledError = pinInit(BOARD_LED_0);
+  pinOutput(ledError, BOARD_LED_INV);
+  const struct Pin ledReady = pinInit(BOARD_LED_1);
+  pinOutput(ledReady, BOARD_LED_INV);
+
+  struct Interface * const serial = boardSetupSerial();
+  ifSetParam(serial, IF_RATE, &SERIAL_RATE);
+
+  struct Timer * const chronoTimer = boardSetupTimer();
+  timerEnable(chronoTimer);
+
+  struct Timer * const sampleTimer = boardSetupTimerAux0();
+  timerSetOverflow(sampleTimer, timerGetFrequency(sampleTimer) / 2);
+
+  struct Timer * const sensorTimer = boardSetupTimerAux1();
+  timerSetOverflow(sensorTimer, timerGetFrequency(sensorTimer) / 1000);
+
+  const struct TimerFactoryConfig timerFactoryConfig = {
+      .timer = sensorTimer
+  };
+  struct TimerFactory * const sensorTimerFactory =
+      init(TimerFactory, &timerFactoryConfig);
+  assert(sensorTimerFactory != NULL);
+  (void)sensorTimerFactory; /* Suppress warnings for tests without timers */
+
+  struct SensorHandler sh;
+  shInit(&sh, SENSOR_COUNT);
+  shSetUpdateWorkQueue(&sh, WQ_DEFAULT);
+
+  struct Context context = {
+      .i2c = NULL,
+      .serial = serial,
+      .sensors = {NULL},
+      .chrono = chronoTimer,
+      .timer = sampleTimer,
+      .error = ledError,
+      .ready = ledReady,
+      .automatic = false,
+      .manual = false,
+      .queued = false
+  };
+
+{% block setup %}{% endblock %}
+
+  for (size_t i = 0; i < SENSOR_COUNT; ++i)
+  {
+    if (context.sensors[i] != NULL)
+    {
+      context.formats[i] = parseDataFormat(sensorGetFormat(context.sensors[i]));
+      context.enabled[i] = true;
+      sensorReset(context.sensors[i]);
+    }
+    else
+    {
+      context.formats[i] = (DataFormat){0, 0, 0};
+      context.enabled[i] = false;
+    }
+  }
+
+  ifSetCallback(serial, onSerialEvent, &context);
+  shSetDataCallback(&sh, onSensorData, &context);
+  shSetFailureCallback(&sh, onSensorError, &context);
+  timerSetCallback(sampleTimer, onSampleRequest, &context);
+
+  /* Start sensor timers */
+  timerEnable(sensorTimer);
+  /* Start Work Queue */
+  wqStart(WQ_DEFAULT);
+
+  return 0;
+}
