@@ -24,10 +24,6 @@ set(FLAGS_PROJECT "-fdata-sections -ffunction-sections -pedantic -Wall -Wextra -
 set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_EXTENSIONS OFF)
 
-if(TARGET_NOR OR TARGET_SDRAM)
-    set(FLAGS_PROJECT "${FLAGS_PROJECT} -mslow-flash-data")
-endif()
-
 if(USE_LTO)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
     if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
@@ -37,6 +33,10 @@ endif()
 
 # Include platform-specific configuration
 include("${PROJECT_SOURCE_DIR}/${BUNDLE}/Config.cmake" OPTIONAL)
+
+if(DISABLE_LITERAL_POOL)
+    set(FLAGS_PROJECT "${FLAGS_PROJECT} -mslow-flash-data")
+endif()
 
 # Generate linker script
 if(EXISTS "${PROJECT_SOURCE_DIR}/${BUNDLE}/memory.ld")

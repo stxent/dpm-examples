@@ -11,10 +11,10 @@
 #include <assert.h>
 #include <stdio.h>
 /*----------------------------------------------------------------------------*/
-enum DisplayType
+enum [[gnu::packed]] DisplayType
 {
   DISPLAY_ST7735
-} __attribute__((packed));
+};
 
 enum
 {

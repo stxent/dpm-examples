@@ -20,27 +20,20 @@
 #include <assert.h>
 #include <string.h>
 /*----------------------------------------------------------------------------*/
-struct Interface *boardSetupI2C(void)
-    __attribute__((alias("boardSetupI2C1")));
+[[gnu::alias("boardSetupI2C1")]] struct Interface *boardSetupI2C(void);
 
-struct Interrupt *boardSetupSensorEvent(enum InputEvent, enum PinPull)
-    __attribute__((alias("boardSetupSensorEvent0")));
+[[gnu::alias("boardSetupSensorEvent0")]]
+    struct Interrupt *boardSetupSensorEvent(enum InputEvent, enum PinPull);
 
-struct Interface *boardSetupSpiDisplay(void)
-    __attribute__((alias("boardSetupSpi0")));
+[[gnu::alias("boardSetupSpi0")]] struct Interface *boardSetupSpiDisplay(void);
 
-struct Interface *boardSetupSpi(void)
-    __attribute__((alias("boardSetupSpi0")));
+[[gnu::alias("boardSetupSpi0")]] struct Interface *boardSetupSpi(void);
 
-struct Timer *boardSetupTimer(void)
-    __attribute__((alias("boardSetupTimer3")));
-struct Timer *boardSetupTimerAux0(void)
-    __attribute__((alias("boardSetupTimer1")));
-struct Timer *boardSetupTimerAux1(void)
-    __attribute__((alias("boardSetupTimer2")));
+[[gnu::alias("boardSetupTimer3")]] struct Timer *boardSetupTimer(void);
+[[gnu::alias("boardSetupTimer1")]] struct Timer *boardSetupTimerAux0(void);
+[[gnu::alias("boardSetupTimer2")]] struct Timer *boardSetupTimerAux1(void);
 
-struct Entity *boardSetupUsb(void)
-    __attribute__((alias("boardSetupUsb0")));
+[[gnu::alias("boardSetupUsb0")]] struct Entity *boardSetupUsb(void);
 
 static void enablePeriphClock(const void *);
 /*----------------------------------------------------------------------------*/
@@ -48,8 +41,7 @@ static const struct ExternalOscConfig extOscConfig = {
     .frequency = 12000000
 };
 
-static struct ClockSettings sharedClockSettings
-    __attribute__((section(".shared")));
+[[gnu::section(".shared")]] static struct ClockSettings sharedClockSettings;
 /*----------------------------------------------------------------------------*/
 DECLARE_WQ_IRQ(WQ_LP, SPI_ISR)
 /*----------------------------------------------------------------------------*/
@@ -365,7 +357,7 @@ struct Interface *boardSetupSpi1(void)
   return interface;
 }
 /*----------------------------------------------------------------------------*/
-struct Interface *boardSetupSpim(struct Timer *timer __attribute__((unused)))
+struct Interface *boardSetupSpim(struct Timer *)
 {
   /* Objects */
   static const struct SpifiConfig spifiConfig = {

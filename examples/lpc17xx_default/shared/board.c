@@ -22,21 +22,16 @@
 #include <halm/platform/lpc/wdt.h>
 #include <assert.h>
 /*----------------------------------------------------------------------------*/
-struct Interface *boardSetupDisplayBus(void)
-    __attribute__((alias("boardSetupDisplayBusDma")));
+[[gnu::alias("boardSetupDisplayBusDma")]]
+    struct Interface *boardSetupDisplayBus(void);
 
-struct Interface *boardSetupSpiDisplay(void)
-    __attribute__((alias("boardSetupSpi1")));
+[[gnu::alias("boardSetupSpi1")]] struct Interface *boardSetupSpiDisplay(void);
 
-struct Interface *boardSetupSpi(void)
-    __attribute__((alias("boardSetupSpi1")));
+[[gnu::alias("boardSetupSpi1")]] struct Interface *boardSetupSpi(void);
 
-struct Timer *boardSetupTimer(void)
-    __attribute__((alias("boardSetupTimer3")));
-struct Timer *boardSetupTimerAux0(void)
-    __attribute__((alias("boardSetupTimer2")));
-struct Timer *boardSetupTimerAux1(void)
-    __attribute__((alias("boardSetupTimer1")));
+[[gnu::alias("boardSetupTimer3")]] struct Timer *boardSetupTimer(void);
+[[gnu::alias("boardSetupTimer2")]] struct Timer *boardSetupTimerAux0(void);
+[[gnu::alias("boardSetupTimer1")]] struct Timer *boardSetupTimerAux1(void);
 /*----------------------------------------------------------------------------*/
 static const struct ExternalOscConfig extOscConfig = {
     .frequency = 12000000

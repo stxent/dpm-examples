@@ -30,7 +30,7 @@
 
 #define MAKE_SENSOR_TIMER(...) timerFactoryCreate(sensorTimerFactory)
 
-enum SensorType
+enum [[gnu::packed]] SensorType
 {
   SENSOR_TYPE_ACCEL,
   SENSOR_TYPE_BARO,
@@ -39,7 +39,7 @@ enum SensorType
   SENSOR_TYPE_MAG,
   SENSOR_TYPE_THERMO,
   SENSOR_TYPE_CUSTOM
-} __attribute__((packed));
+};
 /*----------------------------------------------------------------------------*/
 {% block declarations required %}{% endblock %}
 /*----------------------------------------------------------------------------*/
@@ -146,8 +146,7 @@ static void onSensorData(void *argument, int tag, const void *buffer,
 {% endif %}
 }
 /*----------------------------------------------------------------------------*/
-static void onSensorError(void *argument, int tag __attribute__((unused)),
-    enum SensorResult error)
+static void onSensorError(void *argument, int, enum SensorResult error)
 {
   struct Context * const context = argument;
 

@@ -16,12 +16,9 @@
 #include <halm/platform/lpc/usb_device.h>
 #include <assert.h>
 /*----------------------------------------------------------------------------*/
-struct Timer *boardSetupTimer(void)
-    __attribute__((alias("boardSetupTimer32B1")));
-struct Timer *boardSetupTimerAux0(void)
-    __attribute__((alias("boardSetupTimer16B0")));
-struct Timer *boardSetupTimerAux1(void)
-    __attribute__((alias("boardSetupTimer16B1")));
+[[gnu::alias("boardSetupTimer32B1")]] struct Timer *boardSetupTimer(void);
+[[gnu::alias("boardSetupTimer16B0")]] struct Timer *boardSetupTimerAux0(void);
+[[gnu::alias("boardSetupTimer16B1")]] struct Timer *boardSetupTimerAux1(void);
 /*----------------------------------------------------------------------------*/
 static const struct ExternalOscConfig extOscConfig = {
     .frequency = 12000000

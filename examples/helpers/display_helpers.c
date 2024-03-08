@@ -46,7 +46,7 @@ uint16_t rgbTo565(Color color)
 }
 /*----------------------------------------------------------------------------*/
 void handleChessFill(struct Interface *display, unsigned int color,
-    unsigned int style, void *buffer, size_t size __attribute__((unused)))
+    unsigned int style, void *buffer, size_t)
 {
   const uint16_t colorA = style & 1 ?
       rgbTo565(makeColor(color)) : rgbTo565((Color){0, 0, 0});
@@ -77,7 +77,7 @@ void handleChessFill(struct Interface *display, unsigned int color,
 }
 /*----------------------------------------------------------------------------*/
 void handleGradientFill(struct Interface *display, unsigned int color,
-    unsigned int style, void *buffer, size_t size __attribute__((unused)))
+    unsigned int style, void *buffer, size_t)
 {
   const Color colorA = style & 1 ? makeColor(color) : (Color){0, 0, 0};
   const Color colorB = style & 1 ? (Color){0, 0, 0} : makeColor(color);
@@ -155,7 +155,7 @@ void handleLineFill(struct Interface *display, unsigned int color,
 }
 /*----------------------------------------------------------------------------*/
 void handleMarkerFill(struct Interface *display, unsigned int color,
-    unsigned int style, void *buffer, size_t size __attribute__((unused)))
+    unsigned int style, void *buffer, size_t)
 {
   const uint16_t colorA = style & 1 ?
       rgbTo565((Color){0, 0, 0}) : rgbTo565(makeColor(color));
@@ -203,7 +203,7 @@ void handleMarkerFill(struct Interface *display, unsigned int color,
 }
 /*----------------------------------------------------------------------------*/
 void handleSolidFill(struct Interface *display, unsigned int color,
-    unsigned int style __attribute__((unused)), void *buffer, size_t size)
+    unsigned int, void *buffer, size_t size)
 {
   const unsigned int index = color % (COLORS_TOTAL + 1);
   const uint16_t value = index > 0 ?

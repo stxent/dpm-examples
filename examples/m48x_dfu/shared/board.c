@@ -21,8 +21,7 @@
 /*----------------------------------------------------------------------------*/
 #define TRANSFER_SIZE 128
 
-struct Entity *boardSetupUsb(void)
-    __attribute__((alias("boardSetupUsbFs")));
+[[gnu::alias("boardSetupUsbFs")]] struct Entity *boardSetupUsb(void);
 /*----------------------------------------------------------------------------*/
 static const struct ExternalOscConfig extOscConfig = {
     .frequency = 12000000

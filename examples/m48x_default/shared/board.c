@@ -17,15 +17,11 @@
 #include <halm/platform/numicro/usb_device.h>
 #include <assert.h>
 /*----------------------------------------------------------------------------*/
-struct Timer *boardSetupTimer(void)
-    __attribute__((alias("boardSetupTimer0")));
-struct Timer *boardSetupTimerAux0(void)
-    __attribute__((alias("boardSetupTimer1")));
-struct Timer *boardSetupTimerAux1(void)
-    __attribute__((alias("boardSetupTimer2")));
+[[gnu::alias("boardSetupTimer0")]] struct Timer *boardSetupTimer(void);
+[[gnu::alias("boardSetupTimer1")]] struct Timer *boardSetupTimerAux0(void);
+[[gnu::alias("boardSetupTimer2")]] struct Timer *boardSetupTimerAux1(void);
 
-struct Entity *boardSetupUsb(void)
-    __attribute__((alias("boardSetupUsbHs")));
+[[gnu::alias("boardSetupUsbHs")]] struct Entity *boardSetupUsb(void);
 /*----------------------------------------------------------------------------*/
 static const struct ExternalOscConfig extOscConfig = {
     .frequency = 12000000

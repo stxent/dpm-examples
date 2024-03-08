@@ -37,8 +37,7 @@ static void onResetRequested(void);
 static void startFirmwareTask(void *);
 static void stopFirmwareTask(void *);
 /*----------------------------------------------------------------------------*/
-static struct ClockSettings sharedClockSettings
-    __attribute__((section(".shared")));
+[[gnu::section(".shared")]] static struct ClockSettings sharedClockSettings;
 static const char productStringEn[] = "LPC43xx M0 DFU for Flash";
 
 struct Board instance;
@@ -69,15 +68,13 @@ static void boardInit(struct Board *board)
   interruptEnable(board->buttonPackage.button);
 }
 /*----------------------------------------------------------------------------*/
-static void customStringHeader(const void *argument __attribute__((unused)),
-    enum UsbLangId langid __attribute__((unused)),
+static void customStringHeader(const void *, enum UsbLangId,
     struct UsbDescriptor *header, void *payload)
 {
   usbStringHeader(header, payload, LANGID_ENGLISH_US);
 }
 /*----------------------------------------------------------------------------*/
-static void customStringWrapper(const void *argument,
-    enum UsbLangId langid __attribute__((unused)),
+static void customStringWrapper(const void *argument, enum UsbLangId,
     struct UsbDescriptor *header, void *payload)
 {
   usbStringWrap(header, payload, argument);
