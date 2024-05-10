@@ -31,8 +31,15 @@ Build in a Docker container:
 
 ```sh
 cd docker
-docker build -t dpm-examples:test .
-docker run -it dpm-examples:test
+docker build -t dpm-examples:latest .
+docker run -it dpm-examples
+```
+
+Build a debug version and copy artifacts from the container:
+
+```sh
+docker run --name dpm-examples_debug -it dpm-examples -DCMAKE_BUILD_TYPE=Debug
+docker cp dpm-examples_debug:/build/dpm-examples/deploy/ .
 ```
 
 Useful settings

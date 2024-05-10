@@ -6,6 +6,7 @@
 
 #include "board.h"
 #include <halm/core/cortex/systick.h>
+#include <halm/delay.h>
 #include <halm/generic/flash.h>
 #include <halm/generic/ram_proxy.h>
 #include <halm/generic/timer_factory.h>
@@ -89,6 +90,10 @@ void boardSetupClockExt(void)
 /*----------------------------------------------------------------------------*/
 void boardSetupClockPll(void)
 {
+  static const struct GenericDividerConfig divConfig = {
+      .divisor = 2,
+      .source = CLOCK_PLL
+  };
   static const struct PllConfig systemPllConfig = {
       .divisor = 1,
       .multiplier = 17,
@@ -103,7 +108,16 @@ void boardSetupClockPll(void)
   clockEnable(SystemPll, &systemPllConfig);
   while (!clockReady(SystemPll));
 
+  /* Make a PLL clock divided by 2 for base clock ramp up */
+  clockEnable(DividerA, &divConfig);
+  while (!clockReady(DividerA));
+
+  clockEnable(MainClock, &(struct GenericClockConfig){CLOCK_IDIVA});
+  udelay(50);
   clockEnable(MainClock, &(struct GenericClockConfig){CLOCK_PLL});
+
+  /* Base clock is ready, temporary clock divider is not needed anymore */
+  clockDisable(DividerA);
 }
 /*----------------------------------------------------------------------------*/
 void boardSetupDefaultWQ(void)

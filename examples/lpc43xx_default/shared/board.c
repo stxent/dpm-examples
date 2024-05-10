@@ -6,6 +6,7 @@
 
 #include "board.h"
 #include <dpm/platform/lpc/sgpio_bus.h>
+#include <halm/delay.h>
 #include <halm/generic/work_queue.h>
 #include <halm/platform/lpc/clocking.h>
 #include <halm/platform/lpc/gptimer.h>
@@ -97,6 +98,10 @@ void boardSetupClockExt(void)
 /*----------------------------------------------------------------------------*/
 void boardSetupClockPll(void)
 {
+  static const struct GenericDividerConfig divConfig = {
+      .divisor = 2,
+      .source = CLOCK_PLL
+  };
   static const struct PllConfig systemPllConfig = {
       .divisor = 1,
       .multiplier = 17,
@@ -113,7 +118,16 @@ void boardSetupClockPll(void)
     clockEnable(SystemPll, &systemPllConfig);
     while (!clockReady(SystemPll));
 
+    /* Make a PLL clock divided by 2 for base clock ramp up */
+    clockEnable(DividerA, &divConfig);
+    while (!clockReady(DividerA));
+
+    clockEnable(MainClock, &(struct GenericClockConfig){CLOCK_IDIVA});
+    udelay(50);
     clockEnable(MainClock, &(struct GenericClockConfig){CLOCK_PLL});
+
+    /* Base clock is ready, temporary clock divider is not needed anymore */
+    clockDisable(DividerA);
   }
 
   memset(&sharedClockSettings, 0, sizeof(sharedClockSettings));
