@@ -233,7 +233,7 @@ void boardSetupMemoryNOR(struct MemoryPackage *package)
       .strength = W25_DRV_75PCT,
       .dtr = false,
       .shrink = true,
-      .xip = false
+      .xip = true
   };
   package->flash = init(W25SPIM, &w25Config);
   assert(package->flash != NULL);
@@ -283,6 +283,7 @@ struct Interface *boardSetupSpim(void)
 {
   /* Objects */
   static const struct SpifiConfig spifiConfig = {
+      .delay = 1,
       .cs = PIN(PORT_3, 8),
       .io0 = PIN(PORT_3, 7),
       .io1 = PIN(PORT_3, 6),

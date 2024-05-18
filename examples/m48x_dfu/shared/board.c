@@ -202,9 +202,9 @@ void boardSetupMemoryNOR(struct MemoryPackage *package)
   const struct W25SPIMConfig w25Config = {
       .spim = package->spim,
       .strength = W25_DRV_75PCT,
-      .dtr = false,
+      .dtr = true,
       .shrink = true,
-      .xip = false
+      .xip = true
   };
   package->flash = init(W25SPIM, &w25Config);
   assert(package->flash != NULL);
@@ -228,6 +228,7 @@ struct Interface *boardSetupSpim(struct Timer *timer)
 {
   const struct SpimConfig spimConfig = {
       .timer = timer,
+      .delay = 1,
       .rate = 4000000,
       .cs = PIN(PORT_C, 3),
       .io0 = PIN(PORT_C, 0),

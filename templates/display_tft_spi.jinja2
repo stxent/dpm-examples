@@ -165,8 +165,8 @@ static void parseInput(struct Context *context, char input)
 /*----------------------------------------------------------------------------*/
 int main(void)
 {
-  static const enum DisplayType DISPLAY_TYPE = DISPLAY_ST7735;
-  static const uint32_t SERIAL_RATE = 500000;
+  static const enum DisplayType testDisplayType = DISPLAY_ST7735;
+  static const uint32_t testSerialRate = 500000;
 
   bool event = false;
 
@@ -177,13 +177,13 @@ int main(void)
 
   struct Interface * const serial = boardSetupSerial();
   ifSetCallback(serial, onSerialEvent, &event);
-  ifSetParam(serial, IF_RATE, &SERIAL_RATE);
+  ifSetParam(serial, IF_RATE, &testSerialRate);
 
   struct Timer * const timer = boardSetupTimer();
   timerEnable(timer);
 
   struct Interface * const spi = boardSetupSpiDisplay();
-  struct Interface * const display = makeDisplay(spi, DISPLAY_TYPE);
+  struct Interface * const display = makeDisplay(spi, testDisplayType);
 
   ifSetParam(display, IF_DISPLAY_ORIENTATION,
       &(uint32_t){DISPLAY_ORIENTATION_NORMAL});

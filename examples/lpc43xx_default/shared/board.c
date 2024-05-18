@@ -83,7 +83,9 @@ void boardResetClock(void)
 /*----------------------------------------------------------------------------*/
 void boardSetupClockExt(void)
 {
+#ifndef CONFIG_RESET_CLOCKS
   if (!loadClockSettings(&sharedClockSettings))
+#endif
   {
     clockEnable(MainClock, &(struct GenericClockConfig){CLOCK_INTERNAL});
 
@@ -108,7 +110,9 @@ void boardSetupClockPll(void)
       .source = CLOCK_EXTERNAL
   };
 
+#ifndef CONFIG_RESET_CLOCKS
   if (!loadClockSettings(&sharedClockSettings))
+#endif
   {
     clockEnable(MainClock, &(struct GenericClockConfig){CLOCK_INTERNAL});
 
@@ -375,6 +379,7 @@ struct Interface *boardSetupSpim(struct Timer *)
 {
   /* Objects */
   static const struct SpifiConfig spifiConfig = {
+      .delay = 1,
       .cs = PIN(PORT_3, 8),
       .io0 = PIN(PORT_3, 7),
       .io1 = PIN(PORT_3, 6),

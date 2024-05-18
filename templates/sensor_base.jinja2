@@ -169,7 +169,7 @@ static void onSerialEvent(void *argument)
 /*----------------------------------------------------------------------------*/
 static void serialHandlerTask(void *argument)
 {
-static const char HELP_MESSAGE[] =
+  static const char helpMessage[] =
       "Shortcuts:\r\n"
       "\t1..9: toggle sensor N\r\n"
       "\ta: automatic mode\r\n"
@@ -229,7 +229,7 @@ static const char HELP_MESSAGE[] =
           break;
 
         case 'h':
-          ifWrite(context->serial, HELP_MESSAGE, sizeof(HELP_MESSAGE));
+          ifWrite(context->serial, helpMessage, sizeof(helpMessage));
           break;
 
         case 'l':
@@ -276,7 +276,7 @@ static const char HELP_MESSAGE[] =
 /*----------------------------------------------------------------------------*/
 int main(void)
 {
-  static const uint32_t SERIAL_RATE = 500000;
+  static const uint32_t testSerialRate = 500000;
 
   boardSetupClockPll();
   boardSetupDefaultWQ();
@@ -287,7 +287,7 @@ int main(void)
   pinOutput(ledReady, BOARD_LED_INV);
 
   struct Interface * const serial = boardSetupSerial();
-  ifSetParam(serial, IF_RATE, &SERIAL_RATE);
+  ifSetParam(serial, IF_RATE, &testSerialRate);
 
   struct Timer * const chronoTimer = boardSetupTimer();
   timerEnable(chronoTimer);

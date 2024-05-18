@@ -12,7 +12,9 @@
 #include <assert.h>
 #include <string.h>
 /*----------------------------------------------------------------------------*/
-#define BUFFER_SIZE 2048
+#define BUFFER_SIZE               2048
+#define MEMORY_OFFSET_BLOCKING    (1024 * 1024)
+#define MEMORY_OFFSET_NONBLOCKING (1536 * 1024)
 /*----------------------------------------------------------------------------*/
 static bool memoryTestSequence(struct Interface *, struct Interface *);
 static bool memoryTestSequenceZerocopy(struct Interface *);
@@ -22,7 +24,7 @@ static void onTimerOverflow(void *);
 static bool memoryTestSequence(struct Interface *spim,
     struct Interface *memory)
 {
-  static uint32_t address = 0;
+  static uint32_t address = MEMORY_OFFSET_BLOCKING;
   static bool useBlockErase = false;
 
   const uint32_t position = address;
@@ -60,7 +62,7 @@ static bool memoryTestSequence(struct Interface *spim,
 
   address += chunk;
   if (address >= capacity)
-    address = 0;
+    address = MEMORY_OFFSET_BLOCKING;
 
   /* Erase */
 
@@ -157,7 +159,7 @@ static bool memoryTestSequence(struct Interface *spim,
 /*----------------------------------------------------------------------------*/
 static bool memoryTestSequenceZerocopy(struct Interface *memory)
 {
-  static uint32_t address = 1024 * 1024;
+  static uint32_t address = MEMORY_OFFSET_NONBLOCKING;
   static bool useBlockErase = false;
 
   const uint32_t position = address;
@@ -185,7 +187,7 @@ static bool memoryTestSequenceZerocopy(struct Interface *memory)
 
     address += chunk;
     if (address >= capacity)
-      address = 0;
+      address = MEMORY_OFFSET_NONBLOCKING;
   }
 
   /* Erase */
@@ -313,6 +315,12 @@ static void onTimerOverflow(void *argument)
 /*----------------------------------------------------------------------------*/
 int main(void)
 {
+{%- if config.USE_DTR is defined and config.USE_DTR %}
+  static const bool dtrModeEnabled = true;
+{%- else %}
+  static const bool dtrModeEnabled = false;
+{%- endif %}
+
   bool event = false;
 
   boardSetupClockPll();
@@ -329,8 +337,8 @@ int main(void)
   const struct W25SPIMConfig w25Config = {
       .spim = spim,
       .shrink = false,
-      .dtr = false,
-      .xip = false
+      .dtr = dtrModeEnabled,
+      .xip = true
   };
   struct Interface * const memory = init(W25SPIM, &w25Config);
   assert(memory != NULL);

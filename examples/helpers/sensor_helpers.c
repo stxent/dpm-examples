@@ -155,14 +155,14 @@ DataFormat parseDataFormat(const char *str)
 size_t printFormattedValues(const void *values, const DataFormat *format,
     bool integerFormatSign, unsigned int decimalFormatPrecision, char *output)
 {
-  static const unsigned int PRECISION_MUL[] = {
+  static const unsigned int precisionMulTable[] = {
       1, 10, 100, 1000, 10000, 100000, 1000000
   };
 
   assert(values != NULL && format != NULL && output != NULL);
   assert(decimalFormatPrecision <= 6);
 
-  const unsigned int mul = PRECISION_MUL[decimalFormatPrecision];
+  const unsigned int mul = precisionMulTable[decimalFormatPrecision];
   const unsigned int width = format->i + format->q;
   assert(width == 8 || width == 16 || width == 32);
 

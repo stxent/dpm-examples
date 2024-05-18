@@ -22,7 +22,7 @@ Color interpolateColor(Color a, Color b, int current, int total)
 /*----------------------------------------------------------------------------*/
 Color makeColor(unsigned int color)
 {
-  static const Color COLOR_TABLE[] = {
+  static const Color colorTable[] = {
       {255, 255, 255}, /* White */
       {255, 0, 0},     /* Red */
       {255, 255, 0},   /* Yellow */
@@ -31,9 +31,9 @@ Color makeColor(unsigned int color)
       {0, 0, 255},     /* Blue */
       {255, 0, 255}    /* Magenta */
   };
-  const size_t index = (size_t)color % ARRAY_SIZE(COLOR_TABLE);
+  const size_t index = (size_t)color % ARRAY_SIZE(colorTable);
 
-  return COLOR_TABLE[index];
+  return colorTable[index];
 }
 /*----------------------------------------------------------------------------*/
 uint16_t rgbTo565(Color color)
