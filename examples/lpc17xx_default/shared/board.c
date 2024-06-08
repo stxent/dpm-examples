@@ -316,7 +316,7 @@ struct Interface *boardSetupSpi0(void)
       .mosi = PIN(0, 18),
       .sck = PIN(1, 20),
       .channel = 0,
-      .mode = 3,
+      .mode = 0,
       .dma = {0, 1}
   };
 
@@ -333,7 +333,7 @@ struct Interface *boardSetupSpi1(void)
       .mosi = PIN(0, 9),
       .sck = PIN(0, 7),
       .channel = 1,
-      .mode = 3,
+      .mode = 0,
       .dma = {0, 1}
   };
 

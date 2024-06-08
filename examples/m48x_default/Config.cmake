@@ -26,9 +26,6 @@ elseif(TARGET_SDRAM)
     math(EXPR ROM_LENGTH "4 * 1024 * 1024")
     math(EXPR ROM_ORIGIN "${ADDRESS_SDRAM}")
     set(DISABLE_LITERAL_POOL ON)
-
-    # Do not use clock settings from the bootloader
-    set(BUNDLE_DEFS "-DCONFIG_RESET_CLOCKS")
 else()
     if(USE_DFU)
         set(DFU_LENGTH 32768)

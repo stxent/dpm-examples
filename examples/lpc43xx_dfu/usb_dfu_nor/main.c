@@ -148,10 +148,6 @@ static void startFirmwareTask(void *argument)
 /*----------------------------------------------------------------------------*/
 int main(void)
 {
-#ifdef CONFIG_FIRST_STAGE
-  nvicSetVectorTableOffset((uint32_t)&_stext);
-#endif
-
   boardSetupDefaultWQ();
   boardInit(&instance);
 
