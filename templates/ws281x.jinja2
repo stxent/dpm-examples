@@ -1,0 +1,66 @@
+/*
+ * {{group.name}}/ws281x/main.c
+ * Automatically generated file
+ */
+
+#include "board.h"
+#include <halm/timer.h>
+#include <xcore/interface.h>
+/*----------------------------------------------------------------------------*/
+#define LED_COUNT 30
+/*----------------------------------------------------------------------------*/
+static uint8_t buffer[LED_COUNT * 3];
+/*----------------------------------------------------------------------------*/
+static void onTimerOverflow(void *argument)
+{
+  *(bool *)argument = true;
+}
+/*----------------------------------------------------------------------------*/
+static void fillAndSendData(struct Interface *interface, unsigned int color,
+    unsigned int value)
+{
+  for (size_t i = 0; i < LED_COUNT; ++i)
+  {
+    buffer[i * 3 + 0] = (color & 1) ? value : 0;
+    buffer[i * 3 + 1] = (color & 2) ? value : 0;
+    buffer[i * 3 + 2] = (color & 4) ? value : 0;
+  }
+
+  ifWrite(interface, buffer, sizeof(buffer));
+}
+/*----------------------------------------------------------------------------*/
+int main(void)
+{
+  unsigned int color = 1;
+  unsigned int value = 0;
+  bool event = false;
+
+  boardSetupClockPll();
+
+  struct Interface * const ws281x = boardSetupWS281x(LED_COUNT);
+  ifSetParam(ws281x, IF_ZEROCOPY, NULL);
+
+  struct Timer * const timer = boardSetupTimer();
+  timerSetOverflow(timer, timerGetFrequency(timer));
+  timerSetCallback(timer, onTimerOverflow, &event);
+  timerEnable(timer);
+
+  while (1)
+  {
+    while (!event)
+      barrier();
+    event = false;
+
+    if (++value == 8)
+    {
+      if (++color == 8)
+        color = 1;
+
+      value = 0;
+    }
+
+    fillAndSendData(ws281x, color, value * 32);
+  }
+
+  return 0;
+}

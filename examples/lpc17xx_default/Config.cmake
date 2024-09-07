@@ -30,5 +30,6 @@ set(TEMPLATES_LIST
         sensor_ms5607
         sensor_sht20
         sensor_xpt2046
+        spi_w25
         systick
 )

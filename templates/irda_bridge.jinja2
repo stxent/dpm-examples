@@ -8,6 +8,10 @@
 #include <halm/usb/usb.h>
 #include <assert.h>
 /*----------------------------------------------------------------------------*/
+#ifndef BOARD_LED_1
+#  define BOARD_LED_1 BOARD_LED_0
+#endif
+
 #define USB_FRAME_SIZE 64
 
 struct InterfaceTuple

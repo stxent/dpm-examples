@@ -180,6 +180,8 @@ struct Interface *boardSetupSpim(struct Timer *timer)
 {
   const struct SpimConfig spimConfig = {
       .timer = timer,
+      .delay = 1,
+      .poll = 1000,
       .rate = 3000000,
       .cs = PIN(PORT_C, 3),
       .io0 = PIN(PORT_C, 0),

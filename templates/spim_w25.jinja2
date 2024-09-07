@@ -12,9 +12,14 @@
 #include <assert.h>
 #include <string.h>
 /*----------------------------------------------------------------------------*/
+#ifndef BOARD_LED_1
+#  define BOARD_LED_1 BOARD_LED_0
+#endif
+
 #define BUFFER_SIZE               2048
-#define MEMORY_OFFSET_BLOCKING    (1024 * 1024)
-#define MEMORY_OFFSET_NONBLOCKING (1536 * 1024)
+#define MEMORY_MIN_CAPACITY       (2048 * 1024)
+#define MEMORY_OFFSET_BLOCKING    (MEMORY_MIN_CAPACITY * 2 / 4)
+#define MEMORY_OFFSET_NONBLOCKING (MEMORY_MIN_CAPACITY * 3 / 4)
 /*----------------------------------------------------------------------------*/
 static bool memoryTestSequence(struct Interface *, struct Interface *);
 static bool memoryTestSequenceZerocopy(struct Interface *);
@@ -47,13 +52,13 @@ static bool memoryTestSequence(struct Interface *spim,
   /* Read geometry */
 
   res = ifGetParam(memory, IF_SIZE, &capacity);
-  if (res != E_OK || capacity == 0)
+  if (res != E_OK || capacity < MEMORY_MIN_CAPACITY)
     return false;
 
   chunk = 0;
   res = ifGetParam(memory, IF_FLASH_SECTOR_SIZE, &chunk);
   if (res != E_OK || chunk == 0)
-    return false;
+    useBlockErase = true;
 
   chunk = 0;
   res = ifGetParam(memory, IF_FLASH_BLOCK_SIZE, &chunk);
@@ -176,11 +181,15 @@ static bool memoryTestSequenceZerocopy(struct Interface *memory)
   /* Read geometry */
 
   res = ifGetParam(memory, IF_SIZE, &capacity);
-  if (res == E_OK && capacity == 0)
+  if (res == E_OK && capacity < MEMORY_MIN_CAPACITY)
     res = E_MEMORY;
 
   if (res == E_OK)
   {
+    res = ifGetParam(memory, IF_FLASH_SECTOR_SIZE, &chunk);
+    if (res != E_OK || chunk == 0)
+      useBlockErase = true;
+
     res = ifGetParam(memory, IF_FLASH_BLOCK_SIZE, &chunk);
     if (res == E_OK && chunk == 0)
       res = E_MEMORY;

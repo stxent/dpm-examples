@@ -64,6 +64,7 @@ set(TEMPLATES_LIST
         sensor_ms5607_spi=sensor_ms5607:USE_SPI=true
         sensor_sht20
         sensor_xpt2046
+        spi_w25
         spim_w25
         systick
 )
