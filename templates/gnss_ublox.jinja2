@@ -1,0 +1,173 @@
+/*
+ * {{group.name}}/gnss_ublox/main.c
+ * Automatically generated file
+ */
+
+#include "board.h"
+#include <dpm/gnss/ublox.h>
+#include <halm/generic/lifetime_timer_64.h>
+#include <xcore/interface.h>
+#include <assert.h>
+#include <stdio.h>
+#include <string.h>
+/*----------------------------------------------------------------------------*/
+struct Context
+{
+  struct Ublox *receiver;
+  struct Interface *streamText;
+  struct Interface *streamWork;
+  unsigned int pass;
+};
+/*----------------------------------------------------------------------------*/
+static const uint32_t testUartRates[] = {9600, 57600, 115200, 230400, 460800};
+static const uint32_t testWorkRate = 230400;
+/*----------------------------------------------------------------------------*/
+static void onConfigFinished(void *argument, bool status)
+{
+  struct Context * const context = argument;
+  char buffer[64];
+
+  sprintf(buffer, "CFG %s\r\n", status ? "true" : "false");
+  ifWrite(context->streamText, buffer, strlen(buffer));
+
+  if (!status)
+  {
+    uint32_t rate = 0;
+
+    while (1)
+    {
+      if (++context->pass > ARRAY_SIZE(testUartRates))
+        context->pass = 0;
+
+      if (context->pass > 0)
+      {
+        if (testUartRates[context->pass - 1] == testWorkRate)
+          continue;
+        rate = testUartRates[context->pass - 1];
+      }
+      else
+        rate = testWorkRate;
+    }
+
+    ifSetParam(context->streamWork, IF_RATE, &rate);
+    ubloxReset(context->receiver, testWorkRate);
+  }
+}
+/*----------------------------------------------------------------------------*/
+static void onPositionReceived(void *argument, int32_t lat, int32_t lon,
+    int32_t alt)
+{
+  struct Context * const context = argument;
+  char buffer[64];
+
+  sprintf(buffer, "LLH %li %li %li\r\n",
+      (long int)lat, (long int)lon, (long int)alt);
+  ifWrite(context->streamText, buffer, strlen(buffer));
+}
+/*----------------------------------------------------------------------------*/
+static void onSatelliteCountReceived(void *argument,
+    const struct SatelliteInfo *info)
+{
+  struct Context * const context = argument;
+  char buffer[64];
+
+  sprintf(buffer, "SAT %u %u %u %u %u\r\n",
+      (unsigned int)info->gps, (unsigned int)info->glonass,
+      (unsigned int)info->beidou, (unsigned int)info->galileo,
+      (unsigned int)info->sbas);
+  ifWrite(context->streamText, buffer, strlen(buffer));
+}
+/*----------------------------------------------------------------------------*/
+static void onStatusReceived(void *argument, enum FixType fix)
+{
+  struct Context * const context = argument;
+  char buffer[64];
+
+  sprintf(buffer, "FIX %u\r\n", (unsigned int)fix);
+  ifWrite(context->streamText, buffer, strlen(buffer));
+}
+/*----------------------------------------------------------------------------*/
+static void onTimeReceived(void *argument, uint64_t timestamp)
+{
+  struct Context * const context = argument;
+  char buffer[64];
+
+  uint64_t iPart = timestamp / 1000000;
+  uint32_t fPart = timestamp % 1000000;
+
+  sprintf(buffer, "PPS %llu.%06lu\r\n",
+      (unsigned long long)iPart, (unsigned long)fPart);
+  ifWrite(context->streamText, buffer, strlen(buffer));
+}
+/*----------------------------------------------------------------------------*/
+static void onVelocityReceived(void *argument, int32_t n, int32_t e, int32_t d)
+{
+  struct Context * const context = argument;
+  char buffer[64];
+
+  sprintf(buffer, "NED %li %li %li\r\n",
+      (long int)n, (long int)e, (long int)d);
+  ifWrite(context->streamText, buffer, strlen(buffer));
+}
+/*----------------------------------------------------------------------------*/
+int main(void)
+{
+  boardSetupClockPll();
+  boardSetupDefaultWQ();
+
+  const struct Pin led = pinInit(BOARD_LED);
+  pinOutput(led, BOARD_LED_INV);
+
+  struct Timer * const timerChrono = boardSetupTimerAux0();
+  struct Timer * const timerEvent = boardSetupTimer();
+
+  const struct LifetimeTimer64Config chronoConfig = {
+      .timer = timerChrono
+  };
+  struct Timer64 * const chrono = init(LifetimeTimer64, &chronoConfig);
+  assert(chrono != NULL);
+  timerEnable(chrono);
+
+  struct Interrupt * const pps = boardSetupSensorEvent(INPUT_RISING,
+      PIN_PULLDOWN);
+
+  struct Interface * const streamText = boardSetupSerial();
+  ifSetParam(streamText, IF_RATE, &(uint32_t){115200});
+
+  struct Interface * const streamWork = boardSetupSerialAux();
+  ifSetParam(streamWork, IF_RATE, &testWorkRate);
+
+  const struct UbloxConfig config = {
+      .chrono = chrono,
+      .pps = pps,
+      .serial = streamWork,
+      .timer = timerEvent,
+      .wq = WQ_DEFAULT,
+      .rate = 5
+  };
+  struct Ublox * const receiver = init(Ublox, &config);
+  assert(receiver != NULL);
+
+  struct Context context = {
+      .receiver = receiver,
+      .streamText = streamText,
+      .streamWork = streamWork,
+      .pass = 1
+  };
+
+  ubloxSetCallbackArgument(receiver, &context);
+  ubloxSetConfigFinishedCallback(receiver, onConfigFinished);
+  ubloxSetPositionReceivedCallback(receiver, onPositionReceived);
+  ubloxSetSatelliteCountReceivedCallback(receiver, onSatelliteCountReceived);
+  ubloxSetStatusReceivedCallback(receiver, onStatusReceived);
+  ubloxSetTimeReceivedCallback(receiver, onTimeReceived);
+  ubloxSetVelocityReceivedCallback(receiver, onVelocityReceived);
+
+  ubloxEnable(receiver);
+  ubloxReset(receiver, testWorkRate);
+
+  /* Initialize and start Work Queue */
+  wqStart(WQ_DEFAULT);
+
+  return 0;
+}

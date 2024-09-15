@@ -25,6 +25,7 @@ set(TEMPLATES_LIST
         display_tft_spi
         i2c_m24
         irda_bridge
+        gnss_ublox
         sensor_ds18b20
         sensor_mpu6000
         sensor_ms5607

@@ -26,9 +26,11 @@
 [[gnu::alias("boardSetupSensorEvent0")]]
     struct Interrupt *boardSetupSensorEvent(enum InputEvent, enum PinPull);
 
-[[gnu::alias("boardSetupSpi0")]] struct Interface *boardSetupSpiDisplay(void);
+[[gnu::alias("boardSetupSerial1")]] struct Interface *boardSetupSerial(void);
+[[gnu::alias("boardSetupSerial2")]] struct Interface *boardSetupSerialAux(void);
 
 [[gnu::alias("boardSetupSpi0")]] struct Interface *boardSetupSpi(void);
+[[gnu::alias("boardSetupSpi0")]] struct Interface *boardSetupSpiDisplay(void);
 
 [[gnu::alias("boardSetupTimer3")]] struct Timer *boardSetupTimer(void);
 [[gnu::alias("boardSetupTimer1")]] struct Timer *boardSetupTimerAux0(void);
@@ -362,6 +364,7 @@ struct Interrupt *boardSetupSensorEvent0(enum InputEvent edge,
 {
   const struct PinIntConfig eventIntConfig = {
       .pin = BOARD_SENSOR_INT_0,
+      .priority = 0,
       .event = edge,
       .pull = pull
   };
@@ -376,6 +379,7 @@ struct Interrupt *boardSetupSensorEvent1(enum InputEvent edge,
 {
   const struct PinIntConfig eventIntConfig = {
       .pin = BOARD_SENSOR_INT_1,
+      .priority = 0,
       .event = edge,
       .pull = pull
   };
@@ -385,7 +389,7 @@ struct Interrupt *boardSetupSensorEvent1(enum InputEvent edge,
   return interrupt;
 }
 /*----------------------------------------------------------------------------*/
-struct Interface *boardSetupSerial(void)
+struct Interface *boardSetupSerial1(void)
 {
   static const struct SerialConfig serialConfig = {
       .rxLength = BOARD_UART_BUFFER,
@@ -396,14 +400,25 @@ struct Interface *boardSetupSerial(void)
       .channel = 1
   };
 
-  if (serialConfig.channel == 0)
-    enablePeriphClock(Usart0Clock);
-  else if (serialConfig.channel == 1)
-    enablePeriphClock(Uart1Clock);
-  else if (serialConfig.channel == 2)
-    enablePeriphClock(Usart2Clock);
-  else
-    enablePeriphClock(Usart3Clock);
+  enablePeriphClock(Uart1Clock);
+
+  struct Interface * const interface = init(Serial, &serialConfig);
+  assert(interface != NULL);
+  return interface;
+}
+/*----------------------------------------------------------------------------*/
+struct Interface *boardSetupSerial2(void)
+{
+  static const struct SerialConfig serialConfig = {
+      .rxLength = BOARD_UART_BUFFER,
+      .txLength = BOARD_UART_BUFFER,
+      .rate = 19200,
+      .rx = PIN(PORT_2, 11),
+      .tx = PIN(PORT_2, 10),
+      .channel = 2
+  };
+
+  enablePeriphClock(Usart2Clock);
 
   struct Interface * const interface = init(Serial, &serialConfig);
   assert(interface != NULL);
@@ -559,6 +574,7 @@ struct Interrupt *boardSetupTouchEvent(enum InputEvent edge, enum PinPull pull)
 {
   const struct PinIntConfig eventIntConfig = {
       .pin = BOARD_TOUCH_INT,
+      .priority = 0,
       .event = edge,
       .pull = pull
   };
