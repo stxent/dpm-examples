@@ -1,0 +1,61 @@
+/*
+ * {{group.name}}/button_complex/main.c
+ * Automatically generated file
+ */
+
+#include "board.h"
+#include <dpm/button_complex.h>
+#include <assert.h>
+/*----------------------------------------------------------------------------*/
+#ifndef BOARD_LED_1
+#  define BOARD_LED_1 BOARD_LED_0
+#endif
+/*----------------------------------------------------------------------------*/
+static void onButtonHold(void *argument)
+{
+  struct Pin * const led = argument;
+  pinToggle(*led);
+}
+/*----------------------------------------------------------------------------*/
+static void onButtonPressed(void *argument)
+{
+  struct Pin * const led = argument;
+  pinWrite(*led, !BOARD_LED_INV);
+}
+/*----------------------------------------------------------------------------*/
+static void onButtonReleased(void *argument)
+{
+  struct Pin * const led = argument;
+  pinWrite(*led, BOARD_LED_INV);
+}
+/*----------------------------------------------------------------------------*/
+int main(void)
+{
+  boardSetupClockExt();
+
+  struct Pin holdLed = pinInit(BOARD_LED_0);
+  pinOutput(holdLed, BOARD_LED_INV);
+  struct Pin pressLed = pinInit(BOARD_LED_1);
+  pinOutput(pressLed, BOARD_LED_INV);
+
+  struct Interrupt * const event = boardSetupButton(INPUT_TOGGLE);
+  struct Timer * const timer = boardSetupTimer();
+
+  const struct ButtonComplexConfig config = {
+      .interrupt = event,
+      .timer = timer,
+      .pin = BOARD_BUTTON,
+      .delay = 5,
+      .hold = 50,
+      .level = !BOARD_BUTTON_INV
+  };
+  struct ButtonComplex * const button = init(ButtonComplex, &config);
+  assert(button != NULL);
+  buttonComplexSetLongPressCallback(button, onButtonHold, &holdLed);
+  buttonComplexSetPressCallback(button, onButtonPressed, &pressLed);
+  buttonComplexSetReleaseCallback(button, onButtonReleased, &pressLed);
+  buttonComplexEnable(button);
+
+  while (1);
+  return 0;
+}

@@ -118,11 +118,11 @@ int main(void)
   const struct Pin led = pinInit(BOARD_LED);
   pinOutput(led, BOARD_LED_INV);
 
-  struct Timer * const timerChrono = boardSetupTimerAux0();
-  struct Timer * const timerEvent = boardSetupTimer();
+  struct Timer * const chronoTimer = boardSetupTimer();
+  struct Timer * const stateTimer = boardSetupTimerAux0();
 
   const struct LifetimeTimer64Config chronoConfig = {
-      .timer = timerChrono
+      .timer = chronoTimer
   };
   struct Timer64 * const chrono = init(LifetimeTimer64, &chronoConfig);
   assert(chrono != NULL);
@@ -141,7 +141,7 @@ int main(void)
       .chrono = chrono,
       .pps = pps,
       .serial = streamWork,
-      .timer = timerEvent,
+      .timer = stateTimer,
       .wq = WQ_DEFAULT,
       .rate = 5
   };

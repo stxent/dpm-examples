@@ -179,12 +179,12 @@ int main(void)
   pinOutput(zerocopyLed, BOARD_LED_INV);
 
   struct Timer * const eventTimer = boardSetupTimer();
-  struct Timer * const memoryTimer = boardSetupTimerAux0();
+  struct Timer * const stateTimer = boardSetupTimerAux0();
   struct Interface * const i2c = boardSetupI2C();
 
   const struct M24Config m24Config = {
       .bus = i2c,
-      .timer = memoryTimer,
+      .timer = stateTimer,
       .address = 0x50,
       .chipSize = 65536,
       .pageSize = 32,

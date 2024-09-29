@@ -73,7 +73,7 @@ void boardSetupClockExt(void);
 void boardSetupClockPll(void);
 void boardSetupDefaultWQ(void);
 void boardSetupLowPriorityWQ(void);
-struct Interrupt *boardSetupButton(void);
+struct Interrupt *boardSetupButton(enum InputEvent);
 struct Interface *boardSetupDisplayBus(void);
 struct Interface *boardSetupDisplayBusDma(void);
 struct Interface *boardSetupDisplayBusSimple(void);

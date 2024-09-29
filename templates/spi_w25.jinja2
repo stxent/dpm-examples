@@ -286,7 +286,7 @@ static void onTimerOverflow(void *argument)
 /*----------------------------------------------------------------------------*/
 int main(void)
 {
-  static const bool busyTimerEnabled = true;
+  static const bool stateTimerEnabled = true;
   bool event = false;
 
   boardSetupClockPll();
@@ -296,13 +296,13 @@ int main(void)
   const struct Pin zerocopyLed = pinInit(BOARD_LED_1);
   pinOutput(zerocopyLed, BOARD_LED_INV);
 
-  struct Timer * const busyTimer = boardSetupTimer();
-  struct Timer * const eventTimer = boardSetupTimerAux0();
+  struct Timer * const eventTimer = boardSetupTimer();
+  struct Timer * const stateTimer = boardSetupTimerAux0();
   struct Interface * const spi = boardSetupSpi();
 
   const struct W25SPIConfig w25Config = {
       .spi = spi,
-      .timer = busyTimerEnabled ? busyTimer : NULL,
+      .timer = stateTimerEnabled ? stateTimer : NULL,
       .poll = 1000,
       .cs = BOARD_SPI_CS,
       .strength = W25_DRV_DEFAULT
@@ -324,7 +324,7 @@ int main(void)
     if (memoryTestSequence(memory))
       pinWrite(blockingLed, BOARD_LED_INV);
 
-    if (busyTimerEnabled)
+    if (stateTimerEnabled)
     {
       pinWrite(zerocopyLed, !BOARD_LED_INV);
       if (memoryTestSequenceZerocopy(memory))

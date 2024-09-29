@@ -28,7 +28,7 @@
     } \
     while (false)
 
-#define MAKE_SENSOR_TIMER(...) timerFactoryCreate(sensorTimerFactory)
+#define MAKE_SENSOR_TIMER(...) timerFactoryCreate(stateTimerFactory)
 
 enum [[gnu::packed]] SensorType
 {
@@ -292,19 +292,19 @@ int main(void)
   struct Timer * const chronoTimer = boardSetupTimer();
   timerEnable(chronoTimer);
 
-  struct Timer * const sampleTimer = boardSetupTimerAux0();
-  timerSetOverflow(sampleTimer, timerGetFrequency(sampleTimer) / 2);
+  struct Timer * const eventTimer = boardSetupTimerAux0();
+  timerSetOverflow(eventTimer, timerGetFrequency(eventTimer) / 2);
 
-  struct Timer * const sensorTimer = boardSetupTimerAux1();
-  timerSetOverflow(sensorTimer, timerGetFrequency(sensorTimer) / 1000);
+  struct Timer * const stateTimer = boardSetupTimerAux1();
+  timerSetOverflow(stateTimer, timerGetFrequency(stateTimer) / 1000);
 
   const struct TimerFactoryConfig timerFactoryConfig = {
-      .timer = sensorTimer
+      .timer = stateTimer
   };
-  struct TimerFactory * const sensorTimerFactory =
+  struct TimerFactory * const stateTimerFactory =
       init(TimerFactory, &timerFactoryConfig);
-  assert(sensorTimerFactory != NULL);
-  (void)sensorTimerFactory; /* Suppress warnings for tests without timers */
+  assert(stateTimerFactory != NULL);
+  (void)stateTimerFactory; /* Suppress warnings for tests without timers */
 
   struct SensorHandler sh;
   shInit(&sh, SENSOR_COUNT);
@@ -315,7 +315,7 @@ int main(void)
       .serial = serial,
       .sensors = {NULL},
       .chrono = chronoTimer,
-      .timer = sampleTimer,
+      .timer = eventTimer,
       .error = ledError,
       .ready = ledReady,
       .automatic = false,
@@ -343,10 +343,10 @@ int main(void)
   ifSetCallback(serial, onSerialEvent, &context);
   shSetDataCallback(&sh, onSensorData, &context);
   shSetFailureCallback(&sh, onSensorError, &context);
-  timerSetCallback(sampleTimer, onSampleRequest, &context);
+  timerSetCallback(eventTimer, onSampleRequest, &context);
 
   /* Start sensor timers */
-  timerEnable(sensorTimer);
+  timerEnable(stateTimer);
   /* Start Work Queue */
   wqStart(WQ_DEFAULT);
 

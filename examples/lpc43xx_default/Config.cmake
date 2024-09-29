@@ -53,6 +53,8 @@ set(BUNDLE_LIBS "m")
 # Define template list
 set(TEMPLATES_LIST
         attitude_dcm
+        button
+        button_complex
         display_tft
         display_tft_spi
         i2c_m24

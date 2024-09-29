@@ -21,6 +21,8 @@ math(EXPR ROM_ORIGIN "${ADDRESS_FLASH} + ${DFU_LENGTH}")
 
 # Define template list
 set(TEMPLATES_LIST
+        button
+        button_complex
         display_tft
         display_tft_spi
         i2c_m24

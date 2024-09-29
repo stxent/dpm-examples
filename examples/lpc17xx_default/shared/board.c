@@ -116,11 +116,11 @@ void boardSetupLowPriorityWQ(void)
   assert(WQ_LP != NULL);
 }
 /*----------------------------------------------------------------------------*/
-struct Interrupt *boardSetupButton(void)
+struct Interrupt *boardSetupButton(enum InputEvent event)
 {
-  static const struct PinIntConfig buttonIntConfig = {
+  const struct PinIntConfig buttonIntConfig = {
       .pin = BOARD_BUTTON,
-      .event = BOARD_BUTTON_INV ? INPUT_FALLING : INPUT_RISING,
+      .event = event,
       .pull = BOARD_BUTTON_INV ? PIN_PULLUP : PIN_PULLDOWN
   };
 

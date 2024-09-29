@@ -25,7 +25,7 @@ enum
   const struct XPT2046Config touchConfig = {
       .bus = spi,
       .event = event,
-      .timer = sensorTimer,
+      .timer = MAKE_SENSOR_TIMER(),
       .rate = 100000,
       .cs = BOARD_TOUCH_CS,
       .threshold = 100,

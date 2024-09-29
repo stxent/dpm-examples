@@ -339,9 +339,9 @@ int main(void)
   const struct Pin zerocopyLed = pinInit(BOARD_LED_1);
   pinOutput(zerocopyLed, BOARD_LED_INV);
 
-  struct Timer * const busyTimer = boardSetupTimer();
-  struct Timer * const eventTimer = boardSetupTimerAux0();
-  struct Interface * const spim = boardSetupSpim(busyTimer);
+  struct Timer * const eventTimer = boardSetupTimer();
+  struct Timer * const stateTimer = boardSetupTimerAux0();
+  struct Interface * const spim = boardSetupSpim(stateTimer);
 
   const struct W25SPIMConfig w25Config = {
       .spim = spim,
