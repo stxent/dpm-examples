@@ -4,7 +4,7 @@
  */
 
 ENTRY(RESET_ISR)
-EXTERN(vectorTable)
+EXTERN(vector_table)
 
 MEMORY
 {
@@ -29,12 +29,9 @@ SECTIONS
     *(.rodata*)
 
     _etext = .;
-
-    . = ALIGN(4);
-    _sidata = .;
   } >FLASH =0xFF
 
-  .data : AT(_sidata) ALIGN(4)
+  .data : ALIGN(4)
   {
     _sdata = .;
 
@@ -42,7 +39,9 @@ SECTIONS
     *(.data*)
 
     _edata = .;
-  } >RAM
+  } >RAM AT >FLASH
+
+  _sidata = LOADADDR(.data);
 
   .bss : ALIGN(4)
   {
@@ -55,7 +54,7 @@ SECTIONS
     _ebss = .;
 
     . = ALIGN(4);
-    heapStart = .;
+    heap_start = .;
   } >RAM
 
   .apb :
@@ -85,6 +84,6 @@ SECTIONS
     *(.gnu.linkonce.armextab.*)
   }
 
-  PROVIDE(end = heapStart);
+  PROVIDE(end = heap_start);
   PROVIDE(_stack = ORIGIN(RAM) + LENGTH(RAM));
 }
