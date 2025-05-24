@@ -37,6 +37,10 @@ static const struct ExtendedClockConfig spiClockConfig = {
     .source = CLOCK_APB
 };
 
+static const struct GenericClockConfig timerClockConfig = {
+    .source = CLOCK_APB
+};
+
 static const struct ExtendedClockConfig uartClockConfig = {
     .divisor = 1,
     .source = CLOCK_PLL
@@ -203,6 +207,11 @@ struct Timer *boardSetupTimer0(void)
       .frequency = 1000000,
       .channel = 0
   };
+  const void * const TIMER_CLOCKS[] = {
+      Timer0Clock, Timer1Clock, Timer2Clock, Timer3Clock
+  };
+
+  clockEnable(TIMER_CLOCKS[timerConfig.channel], &timerClockConfig);
 
   struct Timer * const timer = init(GpTimer, &timerConfig);
   assert(timer != NULL);
@@ -215,6 +224,11 @@ struct Timer *boardSetupTimer1(void)
       .frequency = 1000000,
       .channel = 1
   };
+  const void * const TIMER_CLOCKS[] = {
+      Timer0Clock, Timer1Clock, Timer2Clock, Timer3Clock
+  };
+
+  clockEnable(TIMER_CLOCKS[timerConfig.channel], &timerClockConfig);
 
   struct Timer * const timer = init(GpTimer, &timerConfig);
   assert(timer != NULL);
@@ -227,6 +241,11 @@ struct Timer *boardSetupTimer2(void)
       .frequency = 1000000,
       .channel = 2
   };
+  const void * const TIMER_CLOCKS[] = {
+      Timer0Clock, Timer1Clock, Timer2Clock, Timer3Clock
+  };
+
+  clockEnable(TIMER_CLOCKS[timerConfig.channel], &timerClockConfig);
 
   struct Timer * const timer = init(GpTimer, &timerConfig);
   assert(timer != NULL);
@@ -239,6 +258,11 @@ struct Timer *boardSetupTimer3(void)
       .frequency = 1000000,
       .channel = 3
   };
+  const void * const TIMER_CLOCKS[] = {
+      Timer0Clock, Timer1Clock, Timer2Clock, Timer3Clock
+  };
+
+  clockEnable(TIMER_CLOCKS[timerConfig.channel], &timerClockConfig);
 
   struct Timer * const timer = init(GpTimer, &timerConfig);
   assert(timer != NULL);

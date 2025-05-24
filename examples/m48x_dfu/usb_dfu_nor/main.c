@@ -10,7 +10,7 @@
 #include <halm/generic/work_queue.h>
 #include <halm/interrupt.h>
 #include <halm/usb/usb.h>
-#include <dpm/memory/w25_spim.h>
+#include <dpm/memory/w25q_quad.h>
 #include <xcore/asm.h>
 #include <assert.h>
 /*----------------------------------------------------------------------------*/
@@ -107,7 +107,7 @@ static void startFirmwareTask(void *argument)
 {
   struct Board * const board = argument;
 
-  w25MemoryMappingEnable((struct W25SPIM *)board->memoryPackage.flash);
+  w25MemoryMappingEnable((struct W25QQuad *)board->memoryPackage.flash);
   boardClockPostUpdate(board->memoryPackage.spim);
 
   boardDeinit(board);

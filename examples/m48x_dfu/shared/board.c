@@ -12,19 +12,29 @@
 #include <halm/platform/numicro/gptimer.h>
 #include <halm/platform/numicro/hsusb_device.h>
 #include <halm/platform/numicro/pin_int.h>
+#include <halm/platform/numicro/serial.h>
 #include <halm/platform/numicro/spim.h>
 #include <halm/platform/numicro/usb_device.h>
 #include <dpm/button.h>
-#include <dpm/memory/w25_spim.h>
+#include <dpm/memory/w25q_quad.h>
 #include <dpm/usb/dfu_bridge.h>
 #include <assert.h>
 /*----------------------------------------------------------------------------*/
 #define TRANSFER_SIZE 128
 
-[[gnu::alias("boardSetupUsbFs")]] struct Entity *boardSetupUsb(void);
+[[gnu::alias("boardSetupUsbHs")]] struct Entity *boardSetupUsb(void);
 /*----------------------------------------------------------------------------*/
 static const struct ExternalOscConfig extOscConfig = {
     .frequency = 12000000
+};
+
+static const struct GenericClockConfig timerClockConfig = {
+    .source = CLOCK_APB
+};
+
+static const struct ExtendedClockConfig uartClockConfig = {
+    .divisor = 1,
+    .source = CLOCK_PLL
 };
 /*----------------------------------------------------------------------------*/
 void boardClockPostUpdate(struct Interface *spim)
@@ -199,14 +209,14 @@ void boardSetupMemoryNOR(struct MemoryPackage *package)
   package->timer = boardSetupTimerAux1();
   package->spim = boardSetupSpim(package->timer);
 
-  const struct W25SPIMConfig w25Config = {
+  const struct W25QQuadConfig w25Config = {
       .spim = package->spim,
       .strength = W25_DRV_75PCT,
       .dtr = true,
       .shrink = true,
       .xip = true
   };
-  package->flash = init(W25SPIM, &w25Config);
+  package->flash = init(W25QQuad, &w25Config);
   assert(package->flash != NULL);
 
   uint32_t capacity = 0;
@@ -222,6 +232,29 @@ void boardSetupMemoryNOR(struct MemoryPackage *package)
   package->geometry[0].count = capacity / sector;
   package->geometry[0].time = 50;
   package->regions = 1;
+}
+/*----------------------------------------------------------------------------*/
+struct Interface *boardSetupSerial(void)
+{
+  static const struct SerialConfig serialConfig = {
+      .rxLength = 32,
+      .txLength = 16384,
+      .rate = 500000,
+      .rx = PIN(PORT_A, 0),
+      .tx = PIN(PORT_A, 1),
+      .priority = 1,
+      .channel = 0
+  };
+  const void * const UART_CLOCKS[] = {
+      Uart0Clock, Uart1Clock, Uart2Clock, Uart3Clock,
+      Uart4Clock, Uart5Clock, Uart6Clock, Uart7Clock
+  };
+
+  clockEnable(UART_CLOCKS[serialConfig.channel], &uartClockConfig);
+
+  struct Interface * const interface = init(Serial, &serialConfig);
+  assert(interface != NULL);
+  return interface;
 }
 /*----------------------------------------------------------------------------*/
 struct Interface *boardSetupSpim(struct Timer *timer)
@@ -250,6 +283,11 @@ struct Timer *boardSetupTimer(void)
       .frequency = 1000000,
       .channel = 0
   };
+  const void * const TIMER_CLOCKS[] = {
+      Timer0Clock, Timer1Clock, Timer2Clock, Timer3Clock
+  };
+
+  clockEnable(TIMER_CLOCKS[timerConfig.channel], &timerClockConfig);
 
   struct Timer * const timer = init(GpTimer, &timerConfig);
   assert(timer != NULL);
@@ -262,6 +300,11 @@ struct Timer *boardSetupTimerAux0(void)
       .frequency = 1000000,
       .channel = 1
   };
+  const void * const TIMER_CLOCKS[] = {
+      Timer0Clock, Timer1Clock, Timer2Clock, Timer3Clock
+  };
+
+  clockEnable(TIMER_CLOCKS[timerConfig.channel], &timerClockConfig);
 
   struct Timer * const timer = init(GpTimer, &timerConfig);
   assert(timer != NULL);
@@ -274,6 +317,28 @@ struct Timer *boardSetupTimerAux1(void)
       .frequency = 1000000,
       .channel = 2
   };
+  const void * const TIMER_CLOCKS[] = {
+      Timer0Clock, Timer1Clock, Timer2Clock, Timer3Clock
+  };
+
+  clockEnable(TIMER_CLOCKS[timerConfig.channel], &timerClockConfig);
+
+  struct Timer * const timer = init(GpTimer, &timerConfig);
+  assert(timer != NULL);
+  return timer;
+}
+/*----------------------------------------------------------------------------*/
+struct Timer *boardSetupTimerAux2(void)
+{
+  static const struct GpTimerConfig timerConfig = {
+      .frequency = 1000000,
+      .channel = 3
+  };
+  const void * const TIMER_CLOCKS[] = {
+      Timer0Clock, Timer1Clock, Timer2Clock, Timer3Clock
+  };
+
+  clockEnable(TIMER_CLOCKS[timerConfig.channel], &timerClockConfig);
 
   struct Timer * const timer = init(GpTimer, &timerConfig);
   assert(timer != NULL);

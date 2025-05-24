@@ -19,7 +19,7 @@
 #include <halm/platform/lpc/system.h>
 #include <halm/platform/lpc/usb_device.h>
 #include <dpm/button.h>
-#include <dpm/memory/w25_spim.h>
+#include <dpm/memory/w25q_quad.h>
 #include <dpm/usb/dfu_bridge.h>
 #include <assert.h>
 /*----------------------------------------------------------------------------*/
@@ -228,14 +228,14 @@ void boardSetupMemoryNOR(struct MemoryPackage *package)
 {
   package->spifi = boardSetupSpim();
 
-  const struct W25SPIMConfig w25Config = {
+  const struct W25QQuadConfig w25Config = {
       .spim = package->spifi,
       .strength = W25_DRV_75PCT,
       .dtr = false,
       .shrink = true,
       .xip = true
   };
-  package->flash = init(W25SPIM, &w25Config);
+  package->flash = init(W25QQuad, &w25Config);
   assert(package->flash != NULL);
 
   uint32_t capacity = 0;

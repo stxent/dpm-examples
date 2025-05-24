@@ -1,10 +1,11 @@
 /*
- * {{group.name}}/spim_w25/main.c
+ * {{group.name}}/spim_w25q/main.c
  * Automatically generated file
  */
 
 #include "board.h"
-#include <dpm/memory/w25_spim.h>
+#include <dpm/memory/w25q_quad.h>
+#include <halm/delay.h>
 #include <halm/generic/flash.h>
 #include <halm/generic/spim.h>
 #include <halm/timer.h>
@@ -20,6 +21,7 @@
 #define MEMORY_MIN_CAPACITY       (2048 * 1024)
 #define MEMORY_OFFSET_BLOCKING    (MEMORY_MIN_CAPACITY * 2 / 4)
 #define MEMORY_OFFSET_NONBLOCKING (MEMORY_MIN_CAPACITY * 3 / 4)
+#define MEMORY_RESUME_TIMEOUT     100
 /*----------------------------------------------------------------------------*/
 static bool memoryTestSequence(struct Interface *, struct Interface *);
 static bool memoryTestSequenceZerocopy(struct Interface *);
@@ -33,7 +35,7 @@ static bool memoryTestSequence(struct Interface *spim,
   static bool useBlockErase = false;
 
   const uint32_t position = address;
-  uint8_t buffer[BUFFER_SIZE];
+  uint32_t buffer[BUFFER_SIZE / 4];
   uint32_t capacity = 0;
   uint32_t chunk;
   uint32_t count;
@@ -42,12 +44,12 @@ static bool memoryTestSequence(struct Interface *spim,
   /* Get memory mapping configuration */
 
   uintptr_t mmAddress;
-  const uint8_t *mmPointer;
+  const uint32_t *mmPointer;
 
   res = ifGetParam(spim, IF_SPIM_MEMORY_MAPPED_ADDRESS, &mmAddress);
   if (res != E_OK)
     return false;
-  mmPointer = (const uint8_t *)mmAddress;
+  mmPointer = (const uint32_t *)mmAddress;
 
   /* Read geometry */
 
@@ -97,29 +99,29 @@ static bool memoryTestSequence(struct Interface *spim,
   if (count != sizeof(buffer))
     return false;
 
-  for (size_t i = 0; i < sizeof(buffer); ++i)
+  for (size_t i = 0; i < ARRAY_SIZE(buffer); ++i)
   {
-    if (buffer[i] != 0xFF)
+    if (buffer[i] != 0xFFFFFFFFUL)
       return false;
   }
 
   /* Verify memory mapped mode */
 
-  w25MemoryMappingEnable((struct W25SPIM *)memory);
-  for (size_t i = 0; i < sizeof(buffer); ++i)
+  w25MemoryMappingEnable((struct W25QQuad *)memory);
+  for (size_t i = 0; i < ARRAY_SIZE(buffer); ++i)
   {
-    if (mmPointer[position + i] != 0xFF)
+    if (*(mmPointer + position / 4 + i) != 0xFFFFFFFFUL)
     {
-      w25MemoryMappingDisable((struct W25SPIM *)memory);
+      w25MemoryMappingDisable((struct W25QQuad *)memory);
       return false;
     }
   }
-  w25MemoryMappingDisable((struct W25SPIM *)memory);
+  w25MemoryMappingDisable((struct W25QQuad *)memory);
 
   /* Program */
 
-  for (size_t i = 0; i < sizeof(buffer); ++i)
-    buffer[i] = (uint8_t)i;
+  for (size_t i = 0; i < ARRAY_SIZE(buffer); ++i)
+    buffer[i] = (uint32_t)i;
 
   res = ifSetParam(memory, IF_POSITION, &position);
   if (res != E_OK)
@@ -140,24 +142,24 @@ static bool memoryTestSequence(struct Interface *spim,
   if (count != sizeof(buffer))
     return false;
 
-  for (size_t i = 0; i < sizeof(buffer); ++i)
+  for (size_t i = 0; i < ARRAY_SIZE(buffer); ++i)
   {
-    if (buffer[i] != (uint8_t)i)
+    if (buffer[i] != (uint32_t)i)
       return false;
   }
 
   /* Verify memory mapped mode */
 
-  w25MemoryMappingEnable((struct W25SPIM *)memory);
-  for (size_t i = 0; i < sizeof(buffer); ++i)
+  w25MemoryMappingEnable((struct W25QQuad *)memory);
+  for (size_t i = 0; i < ARRAY_SIZE(buffer); ++i)
   {
-    if (mmPointer[position + i] != (uint8_t)i)
+    if (*(mmPointer + position / 4 + i) != (uint32_t)i)
     {
-      w25MemoryMappingDisable((struct W25SPIM *)memory);
+      w25MemoryMappingDisable((struct W25QQuad *)memory);
       return false;
     }
   }
-  w25MemoryMappingDisable((struct W25SPIM *)memory);
+  w25MemoryMappingDisable((struct W25QQuad *)memory);
 
   return true;
 }
@@ -168,7 +170,7 @@ static bool memoryTestSequenceZerocopy(struct Interface *memory)
   static bool useBlockErase = false;
 
   const uint32_t position = address;
-  uint8_t buffer[BUFFER_SIZE];
+  uint32_t buffer[BUFFER_SIZE / 4];
   uint32_t capacity = 0;
   uint32_t chunk = 0;
   uint32_t count;
@@ -238,9 +240,9 @@ static bool memoryTestSequenceZerocopy(struct Interface *memory)
 
       if (res == E_OK)
       {
-        for (size_t i = 0; i < sizeof(buffer); ++i)
+        for (size_t i = 0; i < ARRAY_SIZE(buffer); ++i)
         {
-          if (buffer[i] != 0xFF)
+          if (buffer[i] != 0xFFFFFFFFUL)
           {
             res = E_VALUE;
             break;
@@ -258,8 +260,8 @@ static bool memoryTestSequenceZerocopy(struct Interface *memory)
     res = ifSetParam(memory, IF_POSITION, &position);
   if (res == E_OK)
   {
-    for (size_t i = 0; i < sizeof(buffer); ++i)
-      buffer[i] = (uint8_t)i;
+    for (size_t i = 0; i < ARRAY_SIZE(buffer); ++i)
+      buffer[i] = (uint32_t)i;
 
     count = ifWrite(memory, buffer, sizeof(buffer));
     if (count == sizeof(buffer))
@@ -293,9 +295,9 @@ static bool memoryTestSequenceZerocopy(struct Interface *memory)
 
       if (res == E_OK)
       {
-        for (size_t i = 0; i < sizeof(buffer); ++i)
+        for (size_t i = 0; i < ARRAY_SIZE(buffer); ++i)
         {
-          if (buffer[i] != (uint8_t)i)
+          if (buffer[i] != (uint32_t)i)
           {
             res = E_VALUE;
             break;
@@ -343,13 +345,14 @@ int main(void)
   struct Timer * const stateTimer = boardSetupTimerAux0();
   struct Interface * const spim = boardSetupSpim(stateTimer);
 
-  const struct W25SPIMConfig w25Config = {
+  const struct W25QQuadConfig memoryConfig = {
       .spim = spim,
+      .strength = W25_DRV_DEFAULT,
       .shrink = false,
       .dtr = dtrModeEnabled,
       .xip = true
   };
-  struct Interface * const memory = init(W25SPIM, &w25Config);
+  struct Interface * const memory = init(W25QQuad, &memoryConfig);
   assert(memory != NULL);
 
   timerSetOverflow(eventTimer, timerGetFrequency(eventTimer) * 5);
@@ -362,6 +365,9 @@ int main(void)
       barrier();
     event = false;
 
+    ifSetParam(memory, IF_FLASH_RESUME, NULL);
+    udelay(MEMORY_RESUME_TIMEOUT);
+
     pinWrite(blockingLed, !BOARD_LED_INV);
     if (memoryTestSequence(spim, memory))
       pinWrite(blockingLed, BOARD_LED_INV);
@@ -369,6 +375,8 @@ int main(void)
     pinWrite(zerocopyLed, !BOARD_LED_INV);
     if (memoryTestSequenceZerocopy(memory))
       pinWrite(zerocopyLed, BOARD_LED_INV);
+
+    ifSetParam(memory, IF_FLASH_SUSPEND, NULL);
   }
 
   return 0;

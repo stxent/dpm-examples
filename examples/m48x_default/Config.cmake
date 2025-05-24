@@ -41,6 +41,6 @@ set(BUNDLE_LIBS "m")
 
 # Define template list
 set(TEMPLATES_LIST
-        spim_w25:USE_DTR=true
+        spim_w25q:USE_DTR=true
         systick
 )

@@ -1,10 +1,10 @@
 /*
- * {{group.name}}/spi_w25/main.c
+ * {{group.name}}/spi_mx35/main.c
  * Automatically generated file
  */
 
 #include "board.h"
-#include <dpm/memory/w25_spi.h>
+#include <dpm/memory/mx35_serial.h>
 #include <halm/generic/flash.h>
 #include <halm/timer.h>
 #include <xcore/memory.h>
@@ -15,7 +15,7 @@
 #  define BOARD_LED_1 BOARD_LED_0
 #endif
 
-#define BUFFER_SIZE               2048
+#define BUFFER_SIZE               4096
 #define MEMORY_MIN_CAPACITY       (2048 * 1024)
 #define MEMORY_OFFSET_BLOCKING    (MEMORY_MIN_CAPACITY * 2 / 4)
 #define MEMORY_OFFSET_NONBLOCKING (MEMORY_MIN_CAPACITY * 3 / 4)
@@ -31,7 +31,7 @@ static bool memoryTestSequence(struct Interface *memory)
   static bool useBlockErase = false;
 
   const uint32_t position = address;
-  uint8_t buffer[BUFFER_SIZE];
+  uint32_t buffer[BUFFER_SIZE / 4];
   uint32_t capacity = 0;
   uint32_t chunk;
   uint32_t count;
@@ -85,16 +85,16 @@ static bool memoryTestSequence(struct Interface *memory)
   if (count != sizeof(buffer))
     return false;
 
-  for (size_t i = 0; i < sizeof(buffer); ++i)
+  for (size_t i = 0; i < ARRAY_SIZE(buffer); ++i)
   {
-    if (buffer[i] != 0xFF)
+    if (buffer[i] != 0xFFFFFFFFUL)
       return false;
   }
 
   /* Program */
 
-  for (size_t i = 0; i < sizeof(buffer); ++i)
-    buffer[i] = (uint8_t)i;
+  for (size_t i = 0; i < ARRAY_SIZE(buffer); ++i)
+    buffer[i] = (uint32_t)i;
 
   res = ifSetParam(memory, IF_POSITION, &position);
   if (res != E_OK)
@@ -115,9 +115,9 @@ static bool memoryTestSequence(struct Interface *memory)
   if (count != sizeof(buffer))
     return false;
 
-  for (size_t i = 0; i < sizeof(buffer); ++i)
+  for (size_t i = 0; i < ARRAY_SIZE(buffer); ++i)
   {
-    if (buffer[i] != (uint8_t)i)
+    if (buffer[i] != (uint32_t)i)
       return false;
   }
 
@@ -130,7 +130,7 @@ static bool memoryTestSequenceZerocopy(struct Interface *memory)
   static bool useBlockErase = false;
 
   const uint32_t position = address;
-  uint8_t buffer[BUFFER_SIZE];
+  uint32_t buffer[BUFFER_SIZE / 4];
   uint32_t capacity = 0;
   uint32_t chunk = 0;
   uint32_t count;
@@ -200,9 +200,9 @@ static bool memoryTestSequenceZerocopy(struct Interface *memory)
 
       if (res == E_OK)
       {
-        for (size_t i = 0; i < sizeof(buffer); ++i)
+        for (size_t i = 0; i < ARRAY_SIZE(buffer); ++i)
         {
-          if (buffer[i] != 0xFF)
+          if (buffer[i] != 0xFFFFFFFFUL)
           {
             res = E_VALUE;
             break;
@@ -220,8 +220,8 @@ static bool memoryTestSequenceZerocopy(struct Interface *memory)
     res = ifSetParam(memory, IF_POSITION, &position);
   if (res == E_OK)
   {
-    for (size_t i = 0; i < sizeof(buffer); ++i)
-      buffer[i] = (uint8_t)i;
+    for (size_t i = 0; i < ARRAY_SIZE(buffer); ++i)
+      buffer[i] = (uint32_t)i;
 
     count = ifWrite(memory, buffer, sizeof(buffer));
     if (count == sizeof(buffer))
@@ -255,9 +255,9 @@ static bool memoryTestSequenceZerocopy(struct Interface *memory)
 
       if (res == E_OK)
       {
-        for (size_t i = 0; i < sizeof(buffer); ++i)
+        for (size_t i = 0; i < ARRAY_SIZE(buffer); ++i)
         {
-          if (buffer[i] != (uint8_t)i)
+          if (buffer[i] != (uint32_t)i)
           {
             res = E_VALUE;
             break;
@@ -300,14 +300,16 @@ int main(void)
   struct Timer * const stateTimer = boardSetupTimerAux0();
   struct Interface * const spi = boardSetupSpi();
 
-  const struct W25SPIConfig w25Config = {
+  const struct MX35SerialConfig memoryConfig = {
       .spi = spi,
       .timer = stateTimerEnabled ? stateTimer : NULL,
       .poll = 1000,
+      .rate = 0,
       .cs = BOARD_SPI_CS,
-      .strength = W25_DRV_DEFAULT
+      .ecc = true,
+      .spare = false
   };
-  struct Interface * const memory = init(W25SPI, &w25Config);
+  struct Interface * const memory = init(MX35Serial, &memoryConfig);
   assert(memory != NULL);
 
   timerSetOverflow(eventTimer, timerGetFrequency(eventTimer) * 5);

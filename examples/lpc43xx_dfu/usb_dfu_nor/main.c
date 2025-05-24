@@ -13,7 +13,7 @@
 #include <halm/timer.h>
 #include <halm/usb/usb.h>
 #include <halm/usb/usb_langid.h>
-#include <dpm/memory/w25_spim.h>
+#include <dpm/memory/w25q_quad.h>
 #include <xcore/asm.h>
 #include <assert.h>
 /*----------------------------------------------------------------------------*/
@@ -139,7 +139,7 @@ static void startFirmwareTask(void *argument)
 {
   struct Board * const board = argument;
 
-  w25MemoryMappingEnable((struct W25SPIM *)board->memoryPackage.flash);
+  w25MemoryMappingEnable((struct W25QQuad *)board->memoryPackage.flash);
   boardClockPostUpdate();
 
   boardDeinit(board);

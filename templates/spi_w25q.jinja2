@@ -1,0 +1,344 @@
+/*
+ * {{group.name}}/spi_w25q/main.c
+ * Automatically generated file
+ */
+
+#include "board.h"
+#include <dpm/memory/w25q_serial.h>
+#include <halm/delay.h>
+#include <halm/generic/flash.h>
+#include <halm/timer.h>
+#include <xcore/memory.h>
+#include <assert.h>
+#include <string.h>
+/*----------------------------------------------------------------------------*/
+#ifndef BOARD_LED_1
+#  define BOARD_LED_1 BOARD_LED_0
+#endif
+
+#define BUFFER_SIZE               2048
+#define MEMORY_MIN_CAPACITY       (2048 * 1024)
+#define MEMORY_OFFSET_BLOCKING    (MEMORY_MIN_CAPACITY * 2 / 4)
+#define MEMORY_OFFSET_NONBLOCKING (MEMORY_MIN_CAPACITY * 3 / 4)
+#define MEMORY_RESUME_TIMEOUT     100
+/*----------------------------------------------------------------------------*/
+static bool memoryTestSequence(struct Interface *);
+static bool memoryTestSequenceZerocopy(struct Interface *);
+static void onMemoryEvent(void *);
+static void onTimerOverflow(void *);
+/*----------------------------------------------------------------------------*/
+static bool memoryTestSequence(struct Interface *memory)
+{
+  static uint32_t address = MEMORY_OFFSET_BLOCKING;
+  static bool useBlockErase = false;
+
+  const uint32_t position = address;
+  uint32_t buffer[BUFFER_SIZE / 4];
+  uint32_t capacity = 0;
+  uint32_t chunk;
+  uint32_t count;
+  enum Result res;
+
+  /* Read geometry */
+
+  res = ifGetParam(memory, IF_SIZE, &capacity);
+  if (res != E_OK || capacity < MEMORY_MIN_CAPACITY)
+    return false;
+
+  chunk = 0;
+  res = ifGetParam(memory, IF_FLASH_SECTOR_SIZE, &chunk);
+  if (res != E_OK || chunk == 0)
+    useBlockErase = true;
+
+  chunk = 0;
+  res = ifGetParam(memory, IF_FLASH_BLOCK_SIZE, &chunk);
+  if (res != E_OK || chunk == 0)
+    return false;
+
+  address += chunk;
+  if (address >= capacity)
+    address = MEMORY_OFFSET_BLOCKING;
+
+  /* Erase */
+
+  if (useBlockErase)
+  {
+    useBlockErase = false;
+    res = ifSetParam(memory, IF_FLASH_ERASE_BLOCK, &position);
+    if (res != E_OK)
+      return false;
+  }
+  else
+  {
+    useBlockErase = true;
+    res = ifSetParam(memory, IF_FLASH_ERASE_SECTOR, &position);
+    if (res != E_OK)
+      return false;
+  }
+
+  /* Verify erase */
+
+  res = ifSetParam(memory, IF_POSITION, &position);
+  if (res != E_OK)
+    return false;
+
+  memset(buffer, 0, sizeof(buffer));
+  count = ifRead(memory, buffer, sizeof(buffer));
+  if (count != sizeof(buffer))
+    return false;
+
+  for (size_t i = 0; i < ARRAY_SIZE(buffer); ++i)
+  {
+    if (buffer[i] != 0xFFFFFFFFUL)
+      return false;
+  }
+
+  /* Program */
+
+  for (size_t i = 0; i < ARRAY_SIZE(buffer); ++i)
+    buffer[i] = (uint32_t)i;
+
+  res = ifSetParam(memory, IF_POSITION, &position);
+  if (res != E_OK)
+    return false;
+
+  count = ifWrite(memory, buffer, sizeof(buffer));
+  if (count != sizeof(buffer))
+    return false;
+
+  /* Verify program */
+
+  res = ifSetParam(memory, IF_POSITION, &position);
+  if (res != E_OK)
+    return false;
+
+  memset(buffer, 0, sizeof(buffer));
+  count = ifRead(memory, buffer, sizeof(buffer));
+  if (count != sizeof(buffer))
+    return false;
+
+  for (size_t i = 0; i < ARRAY_SIZE(buffer); ++i)
+  {
+    if (buffer[i] != (uint32_t)i)
+      return false;
+  }
+
+  return true;
+}
+/*----------------------------------------------------------------------------*/
+static bool memoryTestSequenceZerocopy(struct Interface *memory)
+{
+  static uint32_t address = MEMORY_OFFSET_NONBLOCKING;
+  static bool useBlockErase = false;
+
+  const uint32_t position = address;
+  uint32_t buffer[BUFFER_SIZE / 4];
+  uint32_t capacity = 0;
+  uint32_t chunk = 0;
+  uint32_t count;
+  enum Result res;
+  bool event = false;
+
+  ifSetParam(memory, IF_ZEROCOPY, NULL);
+  ifSetCallback(memory, onMemoryEvent, &event);
+
+  /* Read geometry */
+
+  res = ifGetParam(memory, IF_SIZE, &capacity);
+  if (res == E_OK && capacity < MEMORY_MIN_CAPACITY)
+    res = E_MEMORY;
+
+  if (res == E_OK)
+  {
+    res = ifGetParam(memory, IF_FLASH_SECTOR_SIZE, &chunk);
+    if (res != E_OK || chunk == 0)
+      useBlockErase = true;
+
+    res = ifGetParam(memory, IF_FLASH_BLOCK_SIZE, &chunk);
+    if (res == E_OK && chunk == 0)
+      res = E_MEMORY;
+
+    address += chunk;
+    if (address >= capacity)
+      address = MEMORY_OFFSET_NONBLOCKING;
+  }
+
+  /* Erase */
+
+  if (res == E_OK)
+  {
+    if (useBlockErase)
+      res = ifSetParam(memory, IF_FLASH_ERASE_BLOCK, &position);
+    else
+      res = ifSetParam(memory, IF_FLASH_ERASE_SECTOR, &position);
+    useBlockErase = !useBlockErase;
+
+    if (res == E_OK || res == E_BUSY)
+    {
+      while (!event)
+        barrier();
+
+      event = false;
+      res = ifGetParam(memory, IF_STATUS, NULL);
+    }
+  }
+
+  /* Verify erase */
+
+  if (res == E_OK)
+    res = ifSetParam(memory, IF_POSITION, &position);
+  if (res == E_OK)
+  {
+    memset(buffer, 0, sizeof(buffer));
+    count = ifRead(memory, buffer, sizeof(buffer));
+
+    if (count == sizeof(buffer))
+    {
+      while (!event)
+        barrier();
+
+      event = false;
+      res = ifGetParam(memory, IF_STATUS, NULL);
+
+      if (res == E_OK)
+      {
+        for (size_t i = 0; i < ARRAY_SIZE(buffer); ++i)
+        {
+          if (buffer[i] != 0xFFFFFFFFUL)
+          {
+            res = E_VALUE;
+            break;
+          }
+        }
+      }
+    }
+    else
+      res = E_INTERFACE;
+  }
+
+  /* Program */
+
+  if (res == E_OK)
+    res = ifSetParam(memory, IF_POSITION, &position);
+  if (res == E_OK)
+  {
+    for (size_t i = 0; i < ARRAY_SIZE(buffer); ++i)
+      buffer[i] = (uint32_t)i;
+
+    count = ifWrite(memory, buffer, sizeof(buffer));
+    if (count == sizeof(buffer))
+    {
+      while (!event)
+        barrier();
+
+      event = false;
+      res = ifGetParam(memory, IF_STATUS, NULL);
+    }
+    else
+      res = E_INTERFACE;
+  }
+
+  /* Verify program */
+
+  if (res == E_OK)
+    res = ifSetParam(memory, IF_POSITION, &position);
+  if (res == E_OK)
+  {
+    memset(buffer, 0, sizeof(buffer));
+    count = ifRead(memory, buffer, sizeof(buffer));
+
+    if (count == sizeof(buffer))
+    {
+      while (!event)
+        barrier();
+
+      event = false;
+      res = ifGetParam(memory, IF_STATUS, NULL);
+
+      if (res == E_OK)
+      {
+        for (size_t i = 0; i < ARRAY_SIZE(buffer); ++i)
+        {
+          if (buffer[i] != (uint32_t)i)
+          {
+            res = E_VALUE;
+            break;
+          }
+        }
+      }
+    }
+    else
+      res = E_INTERFACE;
+  }
+
+  ifSetCallback(memory, NULL, NULL);
+  ifSetParam(memory, IF_BLOCKING, NULL);
+  return res == E_OK;
+}
+/*----------------------------------------------------------------------------*/
+static void onMemoryEvent(void *argument)
+{
+  *(bool *)argument = true;
+}
+/*----------------------------------------------------------------------------*/
+static void onTimerOverflow(void *argument)
+{
+  *(bool *)argument = true;
+}
+/*----------------------------------------------------------------------------*/
+int main(void)
+{
+  static const bool stateTimerEnabled = true;
+  bool event = false;
+
+  boardSetupClockPll();
+
+  const struct Pin blockingLed = pinInit(BOARD_LED_0);
+  pinOutput(blockingLed, BOARD_LED_INV);
+  const struct Pin zerocopyLed = pinInit(BOARD_LED_1);
+  pinOutput(zerocopyLed, BOARD_LED_INV);
+
+  struct Timer * const eventTimer = boardSetupTimer();
+  struct Timer * const stateTimer = boardSetupTimerAux0();
+  struct Interface * const spi = boardSetupSpi();
+
+  const struct W25QSerialConfig memoryConfig = {
+      .spi = spi,
+      .timer = stateTimerEnabled ? stateTimer : NULL,
+      .poll = 1000,
+      .rate = 0,
+      .cs = BOARD_SPI_CS,
+      .strength = W25_DRV_DEFAULT
+  };
+  struct Interface * const memory = init(W25QSerial, &memoryConfig);
+  assert(memory != NULL);
+
+  timerSetOverflow(eventTimer, timerGetFrequency(eventTimer) * 5);
+  timerSetCallback(eventTimer, onTimerOverflow, &event);
+  timerEnable(eventTimer);
+
+  while (1)
+  {
+    while (!event)
+      barrier();
+    event = false;
+
+    ifSetParam(memory, IF_FLASH_RESUME, NULL);
+    udelay(MEMORY_RESUME_TIMEOUT);
+
+    pinWrite(blockingLed, !BOARD_LED_INV);
+    if (memoryTestSequence(memory))
+      pinWrite(blockingLed, BOARD_LED_INV);
+
+    if (stateTimerEnabled)
+    {
+      pinWrite(zerocopyLed, !BOARD_LED_INV);
+      if (memoryTestSequenceZerocopy(memory))
+        pinWrite(zerocopyLed, BOARD_LED_INV);
+    }
+
+    ifSetParam(memory, IF_FLASH_SUSPEND, NULL);
+  }
+
+  return 0;
+}
