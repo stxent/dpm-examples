@@ -8,7 +8,6 @@
 #define HELPERS_SENSOR_HELPERS_H_
 /*----------------------------------------------------------------------------*/
 #include <xcore/helpers.h>
-#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 /*----------------------------------------------------------------------------*/
