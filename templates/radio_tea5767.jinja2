@@ -1,0 +1,246 @@
+/*
+ * {{group.name}}/{{group.alias}}/main.c
+ * Automatically generated file
+ */
+
+#include "board.h"
+#include <dpm/radio/tea57xx.h>
+#include <halm/timer.h>
+#include <xcore/interface.h>
+#include <assert.h>
+#include <stdio.h>
+/*----------------------------------------------------------------------------*/
+struct Context
+{
+  struct Interface *i2c;
+  struct Interface *serial;
+  struct TEA57XX *radio;
+  struct Timer *timer;
+
+  struct Pin error;
+  struct Pin ready;
+
+  bool automatic;
+  bool mute;
+  bool queued;
+};
+/*----------------------------------------------------------------------------*/
+static void onErrorEvent(void *);
+static void onRadioEvent(void *);
+static void onSerialEvent(void *);
+static void onStateRequest(void *);
+static void printStateTask(void *);
+static void serialHandlerTask(void *);
+/*----------------------------------------------------------------------------*/
+static void onErrorEvent(void *argument)
+{
+  struct Context * const context = argument;
+
+  pinSet(context->error);
+  wqAdd(WQ_DEFAULT, printStateTask, context);
+}
+/*----------------------------------------------------------------------------*/
+static void onRadioEvent(void *argument)
+{
+  wqAdd(WQ_DEFAULT, printStateTask, argument);
+}
+/*----------------------------------------------------------------------------*/
+static void onSerialEvent(void *argument)
+{
+  struct Context * const context = argument;
+
+  if (!context->queued)
+  {
+    if (wqAdd(WQ_DEFAULT, serialHandlerTask, argument) == E_OK)
+      context->queued = true;
+  }
+}
+/*----------------------------------------------------------------------------*/
+static void onStateRequest(void *argument)
+{
+  struct Context * const context = argument;
+  tea57xxRequestState(context->radio);
+}
+/*----------------------------------------------------------------------------*/
+static void printStateTask(void *argument)
+{
+  struct Context * const context = argument;
+  const uint32_t frequency = tea57xxGetFrequency(context->radio);
+  const uint32_t level = tea57xxGetLevel(context->radio);
+  const bool muted = tea57xxIsMuted(context->radio);
+
+  const unsigned int scaled = (frequency + 50000) / 100000;
+  char text[64];
+
+  const size_t count = sprintf(text, "F %u.%03u MHz SNR %u %s\r\n",
+      scaled / 10, (scaled % 10) * 100,
+      (unsigned int)level,
+      muted ? "MUTE" : "");
+
+  pinWrite(context->ready, tea57xxIsSearching(context->radio));
+  ifWrite(context->serial, text, count);
+}
+/*----------------------------------------------------------------------------*/
+static void serialHandlerTask(void *argument)
+{
+  static const char helpMessage[] =
+      "Shortcuts:\r\n"
+      "\ta: automatic state update\r\n"
+      "\td: search down\r\n"
+      "\th: show this help message\r\n"
+      "\tl: enable low-power mode\r\n"
+      "\tm: toggle mute mode\r\n"
+      "\tr: reset radio\r\n"
+      "\ts: request state\r\n"
+      "\tu: search up\r\n"
+      "\t+: increase frequency by 100 kHz\r\n"
+      "\t-: decrease frequency by 100 kHz\r\n";
+
+  struct Context * const context = argument;
+  char buffer[BOARD_UART_BUFFER];
+  size_t count;
+
+  context->queued = false;
+
+  while ((count = ifRead(context->serial, buffer, sizeof(buffer))) > 0)
+  {
+    for (size_t position = 0; position < count; ++position)
+    {
+      switch (buffer[position])
+      {
+        case 'a':
+          if (!context->automatic)
+          {
+            timerSetValue(context->timer, 0);
+            timerEnable(context->timer);
+          }
+          else
+            timerDisable(context->timer);
+          context->automatic = !context->automatic;
+          break;
+
+        case 'd':
+          tea57xxSearch(context->radio, false);
+          break;
+
+        case 'h':
+          ifWrite(context->serial, helpMessage, sizeof(helpMessage));
+          break;
+
+        case 'l':
+          tea57xxSuspend(context->radio);
+          timerDisable(context->timer);
+          context->automatic = false;
+          context->mute = true;
+          break;
+
+        case 'm':
+          if (context->mute)
+            tea57xxSetMute(context->radio, CHANNEL_NONE);
+          else
+            tea57xxSetMute(context->radio, CHANNEL_LEFT | CHANNEL_RIGHT);
+          context->mute = !context->mute;
+          break;
+
+        case 'r':
+          pinWrite(context->error, BOARD_LED_INV);
+          pinWrite(context->ready, BOARD_LED_INV);
+          tea57xxReset(context->radio);
+          context->mute = true;
+          break;
+
+        case 's':
+        case ' ':
+          tea57xxRequestState(context->radio);
+          break;
+
+        case 'u':
+          tea57xxSearch(context->radio, true);
+          break;
+
+        case '=':
+        case '+':
+        {
+          uint32_t frequency = tea57xxGetFrequency(context->radio);
+
+          frequency = (((frequency + 50000) / 100000) + 1) * 100000;
+          tea57xxSetFrequency(context->radio, frequency);
+          break;
+        }
+
+        case '-':
+        {
+          uint32_t frequency = tea57xxGetFrequency(context->radio);
+
+          frequency = (((frequency + 50000) / 100000) - 1) * 100000;
+          tea57xxSetFrequency(context->radio, frequency);
+          break;
+        }
+
+        default:
+          break;
+      }
+    }
+  }
+}
+/*----------------------------------------------------------------------------*/
+int main(void)
+{
+  static const uint32_t testSerialRate = 115200;
+
+  boardSetupClockPll();
+  boardSetupDefaultWQ();
+
+  const struct Pin ledError = pinInit(BOARD_LED_0);
+  pinOutput(ledError, BOARD_LED_INV);
+  const struct Pin ledReady = pinInit(BOARD_LED_1);
+  pinOutput(ledReady, BOARD_LED_INV);
+
+  struct Interface * const i2c = boardSetupI2C();
+
+  struct Interface * const serial = boardSetupSerial();
+  ifSetParam(serial, IF_RATE, &testSerialRate);
+
+  struct Timer * const eventTimer = boardSetupTimerAux0();
+  timerSetOverflow(eventTimer, timerGetFrequency(eventTimer) / 10);
+
+  struct Timer * const stateTimer = boardSetupTimerAux1();
+  timerSetOverflow(stateTimer, timerGetFrequency(stateTimer) / 1000);
+
+  const struct TEA57XXConfig radioConfig = {
+      .bus = i2c,
+      .timer = stateTimer,
+      .address = 0x60,
+      .rate = 400000,
+      .clock = TEA57XX_CLOCK_32K,
+      .sensitivity = TEA57XX_SEARCH_MEDIUM
+  };
+  struct TEA57XX * const radio = init(TEA57XX, &radioConfig);
+  assert(radio != NULL);
+  tea57xxSetUpdateWorkQueue(radio, WQ_DEFAULT);
+  tea57xxReset(radio);
+
+  struct Context context = {
+      .i2c = i2c,
+      .serial = serial,
+      .radio = radio,
+      .timer = eventTimer,
+      .error = ledError,
+      .ready = ledReady,
+      .automatic = false,
+      .mute = true,
+      .queued = false
+  };
+
+  ifSetCallback(serial, onSerialEvent, &context);
+  timerSetCallback(eventTimer, onStateRequest, &context);
+  tea57xxSetCallback(radio, onRadioEvent, &context);
+  tea57xxSetErrorCallback(radio, onErrorEvent, &context);
+
+  /* Start radio timer */
+  timerEnable(stateTimer);
+  /* Start Work Queue */
+  wqStart(WQ_DEFAULT);
+
+  return 0;
+}

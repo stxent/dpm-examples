@@ -41,7 +41,7 @@ enum [[gnu::packed]] SensorType
   SENSOR_TYPE_CUSTOM
 };
 /*----------------------------------------------------------------------------*/
-{% block declarations required %}{% endblock %}
+{% block declarations %}{% endblock %}
 /*----------------------------------------------------------------------------*/
 struct Context
 {
@@ -242,10 +242,13 @@ static void serialHandlerTask(void *argument)
           break;
 
         case 'm':
-          if (context->manual)
-            timerDisable(context->timer);
-          else
+          if (!context->manual)
+          {
+            timerSetValue(context->timer, 0);
             timerEnable(context->timer);
+          }
+          else
+            timerDisable(context->timer);
           context->manual = !context->manual;
           break;
 

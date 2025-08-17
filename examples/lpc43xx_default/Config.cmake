@@ -59,6 +59,7 @@ set(TEMPLATES_LIST
         display_tft_spi
         i2c_m24
         gnss_ublox
+        radio_tea5767
         sensor_complex
         sensor_hmc5883
         sensor_mpu6000

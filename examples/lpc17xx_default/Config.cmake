@@ -28,6 +28,7 @@ set(TEMPLATES_LIST
         i2c_m24
         irda_bridge
         gnss_ublox
+        radio_tea5767
         sensor_ds18b20
         sensor_mpu6000
         sensor_ms5607
