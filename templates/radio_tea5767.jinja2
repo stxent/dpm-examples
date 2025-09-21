@@ -201,10 +201,10 @@ int main(void)
   struct Interface * const serial = boardSetupSerial();
   ifSetParam(serial, IF_RATE, &testSerialRate);
 
-  struct Timer * const eventTimer = boardSetupTimerAux0();
+  struct Timer * const eventTimer = boardSetupTimer();
   timerSetOverflow(eventTimer, timerGetFrequency(eventTimer) / 10);
 
-  struct Timer * const stateTimer = boardSetupTimerAux1();
+  struct Timer * const stateTimer = boardSetupTimerAux();
   timerSetOverflow(stateTimer, timerGetFrequency(stateTimer) / 1000);
 
   const struct TEA57XXConfig radioConfig = {

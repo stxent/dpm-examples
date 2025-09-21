@@ -17,6 +17,7 @@
 #include <assert.h>
 /*----------------------------------------------------------------------------*/
 [[gnu::alias("boardSetupTimer32B1")]] struct Timer *boardSetupTimer(void);
+[[gnu::alias("boardSetupTimer16B0")]] struct Timer *boardSetupTimerAux(void);
 [[gnu::alias("boardSetupTimer16B0")]] struct Timer *boardSetupTimerAux0(void);
 [[gnu::alias("boardSetupTimer16B1")]] struct Timer *boardSetupTimerAux1(void);
 /*----------------------------------------------------------------------------*/

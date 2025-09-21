@@ -119,7 +119,7 @@ int main(void)
   pinOutput(led, BOARD_LED_INV);
 
   struct Timer * const chronoTimer = boardSetupTimer();
-  struct Timer * const stateTimer = boardSetupTimerAux0();
+  struct Timer * const stateTimer = boardSetupTimerAux();
 
   const struct LifetimeTimer64Config chronoConfig = {
       .timer = chronoTimer

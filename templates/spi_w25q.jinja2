@@ -299,7 +299,7 @@ int main(void)
   pinOutput(zerocopyLed, BOARD_LED_INV);
 
   struct Timer * const eventTimer = boardSetupTimer();
-  struct Timer * const stateTimer = boardSetupTimerAux0();
+  struct Timer * const stateTimer = boardSetupTimerAux();
   struct Interface * const spi = boardSetupSpi();
 
   const struct W25QSerialConfig memoryConfig = {

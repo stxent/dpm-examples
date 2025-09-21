@@ -50,6 +50,7 @@ struct Timer *boardSetupTimer0(void);
 struct Timer *boardSetupTimer1(void);
 struct Timer *boardSetupTimer2(void);
 struct Timer *boardSetupTimer3(void);
+struct Timer *boardSetupTimerAux(void);
 struct Timer *boardSetupTimerAux0(void);
 struct Timer *boardSetupTimerAux1(void);
 struct Entity *boardSetupUsb(void);

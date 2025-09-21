@@ -52,7 +52,7 @@ static void boardInit(struct Board *board)
   board->ind1 = pinInit(BOARD_USB_IND1);
   pinOutput(board->ind1, BOARD_LED_INV);
 
-  boardSetupClockPll();
+  boardSetupClockPll(1);
   boardSetupMemorySRAM(&board->memoryPackage, (void *)&_sexe,
       (uintptr_t)&_eexe - (uintptr_t)&_sexe);
   storeClockSettings(&sharedClockSettings);
@@ -62,7 +62,7 @@ static void boardInit(struct Board *board)
   boardSetupTimerPackage(&board->timerPackage);
   boardSetupButtonPackage(&board->buttonPackage, board->timerPackage.factory);
   boardSetupDfuPackage(&board->dfuPackage, board->timerPackage.factory,
-      board->memoryPackage.flash, board->memoryPackage.geometry,
+      board->memoryPackage.upper, board->memoryPackage.geometry,
       board->memoryPackage.regions, board->memoryPackage.offset,
       onResetRequested);
 
@@ -86,7 +86,7 @@ static void boardDeinit(struct Board *board)
   deinit(board->buttonPackage.event);
   deinit(board->timerPackage.factory);
   deinit(board->timerPackage.timer);
-  deinit(board->memoryPackage.flash);
+  deinit(board->memoryPackage.upper);
 
   boardResetClock();
   pinWrite(board->ind0, BOARD_LED_INV);

@@ -33,6 +33,7 @@
 [[gnu::alias("boardSetupSpi0")]] struct Interface *boardSetupSpiDisplay(void);
 
 [[gnu::alias("boardSetupTimer3")]] struct Timer *boardSetupTimer(void);
+[[gnu::alias("boardSetupTimer1")]] struct Timer *boardSetupTimerAux(void);
 [[gnu::alias("boardSetupTimer1")]] struct Timer *boardSetupTimerAux0(void);
 [[gnu::alias("boardSetupTimer2")]] struct Timer *boardSetupTimerAux1(void);
 

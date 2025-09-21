@@ -51,6 +51,7 @@ struct Timer *boardSetupTimer16B0(void);
 struct Timer *boardSetupTimer16B1(void);
 struct Timer *boardSetupTimer32B0(void);
 struct Timer *boardSetupTimer32B1(void);
+struct Timer *boardSetupTimerAux(void);
 struct Timer *boardSetupTimerAux0(void);
 struct Timer *boardSetupTimerAux1(void);
 struct Entity *boardSetupUsb(void);

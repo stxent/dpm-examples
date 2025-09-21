@@ -15,7 +15,6 @@
 #include <halm/usb/usb_langid.h>
 #include <dpm/memory/w25q_quad.h>
 #include <xcore/asm.h>
-#include <assert.h>
 /*----------------------------------------------------------------------------*/
 struct Board
 {
@@ -53,7 +52,7 @@ static void boardInit(struct Board *board)
   board->ind1 = pinInit(BOARD_USB_IND1);
   pinOutput(board->ind1, BOARD_LED_INV);
 
-  boardSetupClockPll();
+  boardSetupClockPll(1);
   boardSetupMemoryNOR(&board->memoryPackage);
   storeClockSettings(&sharedClockSettings);
 
@@ -66,7 +65,7 @@ static void boardInit(struct Board *board)
   boardSetupTimerPackage(&board->timerPackage);
   boardSetupButtonPackage(&board->buttonPackage, board->timerPackage.factory);
   boardSetupDfuPackage(&board->dfuPackage, board->timerPackage.factory,
-      board->memoryPackage.flash, board->memoryPackage.geometry,
+      board->memoryPackage.upper, board->memoryPackage.geometry,
       board->memoryPackage.regions, board->memoryPackage.offset,
       onResetRequested);
 
@@ -90,8 +89,8 @@ static void boardDeinit(struct Board *board)
   deinit(board->buttonPackage.event);
   deinit(board->timerPackage.factory);
   deinit(board->timerPackage.timer);
-  deinit(board->memoryPackage.flash);
-  /* SPIFI driver should be left in initialized state */
+  deinit(board->memoryPackage.upper);
+  /* SPIFI driver should be left in an initialized state */
 
   boardResetClockPartial();
   pinWrite(board->ind0, BOARD_LED_INV);
@@ -122,7 +121,7 @@ static void onResetRequested(void)
 static void startFirmware(struct Board *board)
 {
   uintptr_t address = 0;
-  ifGetParam(board->memoryPackage.spifi,
+  ifGetParam(board->memoryPackage.lower,
       IF_SPIM_MEMORY_MAPPED_ADDRESS, &address);
 
   const uint32_t *table = (const uint32_t *)address;
@@ -139,7 +138,7 @@ static void startFirmwareTask(void *argument)
 {
   struct Board * const board = argument;
 
-  w25MemoryMappingEnable((struct W25QQuad *)board->memoryPackage.flash);
+  w25MemoryMappingEnable((struct W25QQuad *)board->memoryPackage.upper);
   boardClockPostUpdate();
 
   boardDeinit(board);

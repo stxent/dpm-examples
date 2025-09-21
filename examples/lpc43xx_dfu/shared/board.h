@@ -47,8 +47,8 @@ struct DfuPackage
 
 struct MemoryPackage
 {
-  struct Interface *spifi;
-  struct Interface *flash;
+  struct Interface *lower;
+  struct Interface *upper;
 
   struct FlashGeometry geometry[2];
   size_t offset;
@@ -65,11 +65,12 @@ void boardClockPostUpdate(void);
 void boardResetClock(void);
 void boardResetClockPartial(void);
 void boardSetupClockExt(void);
-void boardSetupClockPll(void);
+void boardSetupClockPll(unsigned int);
 void boardSetupDefaultWQ(void);
 void boardSetupMemoryFlash(struct MemoryPackage *);
 void boardSetupMemoryFlashB(struct MemoryPackage *);
 void boardSetupMemoryNOR(struct MemoryPackage *);
+void boardSetupMemorySDRAM(struct MemoryPackage *);
 void boardSetupMemorySRAM(struct MemoryPackage *, void *, size_t);
 struct Interface *boardSetupSpim(void);
 struct Timer *boardSetupTimer(void);

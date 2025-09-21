@@ -14,7 +14,6 @@
 #include <halm/usb/usb.h>
 #include <halm/usb/usb_langid.h>
 #include <dpm/memory/w25q_quad.h>
-#include <assert.h>
 /*----------------------------------------------------------------------------*/
 struct Board
 {
@@ -51,7 +50,7 @@ static void boardInit(struct Board *board)
   board->ind1 = pinInit(BOARD_USB_IND1);
   pinOutput(board->ind1, BOARD_LED_INV);
 
-  boardSetupClockPll();
+  boardSetupClockPll(1);
   boardClockPostUpdate();
   boardSetupMemoryNOR(&board->memoryPackage);
   storeClockSettings(&sharedClockSettings);
@@ -62,7 +61,7 @@ static void boardInit(struct Board *board)
   boardSetupTimerPackage(&board->timerPackage);
   boardSetupButtonPackage(&board->buttonPackage, board->timerPackage.factory);
   boardSetupDfuPackage(&board->dfuPackage, board->timerPackage.factory,
-      board->memoryPackage.flash, board->memoryPackage.geometry,
+      board->memoryPackage.upper, board->memoryPackage.geometry,
       board->memoryPackage.regions, board->memoryPackage.offset,
       onResetRequested);
 
@@ -106,13 +105,13 @@ static void startFirmwareTask(void *argument)
   struct Board * const board = argument;
   uintptr_t address;
 
-  ifGetParam(board->memoryPackage.spifi, IF_SPIM_MEMORY_MAPPED_ADDRESS,
+  ifGetParam(board->memoryPackage.lower, IF_SPIM_MEMORY_MAPPED_ADDRESS,
       &address);
 
   board->running = true;
   pinWrite(board->ind1, !BOARD_LED_INV);
 
-  w25MemoryMappingEnable((struct W25QQuad *)board->memoryPackage.flash);
+  w25MemoryMappingEnable((struct W25QQuad *)board->memoryPackage.upper);
 
   sysCoreM0AppRemap(address + board->memoryPackage.offset);
   sysClockEnable(CLK_M4_M0APP);
@@ -124,7 +123,7 @@ static void stopFirmwareTask(void *argument)
   struct Board * const board = argument;
 
   sysResetEnable(RST_M0APP);
-  w25MemoryMappingDisable((struct W25QQuad *)board->memoryPackage.flash);
+  w25MemoryMappingDisable((struct W25QQuad *)board->memoryPackage.upper);
 
   board->running = false;
   pinWrite(board->ind1, BOARD_LED_INV);

@@ -158,7 +158,7 @@ static inline void vec3fNormalize(Vector3f *v)
 static inline void vec3fMakeOrthogonal(const Vector3f *v1, const Vector3f *v2,
     Vector3f *out)
 {
-  // Gram–Schmidt process: out = v2 − (v2 ⋅ v1 / v1 ⋅ v1) * v1
+  /* Gram–Schmidt process: out = v2 − (v2 ⋅ v1 / v1 ⋅ v1) * v1 */
 
   const float dotV1V1 = vec3fDotProduct(v1, v1);
   const float dotV2V1 = vec3fDotProduct(v2, v1);

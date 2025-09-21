@@ -1,17 +1,19 @@
 /*
- * lpc43xx_dfu/usb_dfu_m0/main.c
- * Copyright (C) 2024 xent
+ * lpc43xx_dfu/usb_dfu_sdram/main.c
+ * Copyright (C) 2025 xent
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
 #include "board.h"
+#include <halm/core/cortex/nvic.h>
 #include <halm/generic/work_queue.h>
 #include <halm/interrupt.h>
 #include <halm/platform/lpc/clocking.h>
-#include <halm/platform/lpc/system.h>
+#include <halm/platform/lpc/emc_sdram.h>
 #include <halm/timer.h>
 #include <halm/usb/usb.h>
 #include <halm/usb/usb_langid.h>
+#include <xcore/asm.h>
 /*----------------------------------------------------------------------------*/
 struct Board
 {
@@ -22,22 +24,21 @@ struct Board
   struct MemoryPackage memoryPackage;
   struct ButtonPackage buttonPackage;
   struct DfuPackage dfuPackage;
-
-  bool running;
 };
 /*----------------------------------------------------------------------------*/
 static void boardInit(struct Board *);
+static void boardDeinit(struct Board *);
 static void customStringHeader(const void *, enum UsbLangId,
     struct UsbDescriptor *, void *);
 static void customStringWrapper(const void *, enum UsbLangId,
     struct UsbDescriptor *, void *);
 static void onButtonPressed(void *);
 static void onResetRequested(void);
+static void startFirmware(struct Board *);
 static void startFirmwareTask(void *);
-static void stopFirmwareTask(void *);
 /*----------------------------------------------------------------------------*/
 [[gnu::section(".shared")]] static struct ClockSettings sharedClockSettings;
-static const char productStringEn[] = "LPC43xx M0 DFU for Flash";
+static const char productStringEn[] = "LPC43xx M4 DFU for SDRAM";
 
 struct Board instance;
 /*----------------------------------------------------------------------------*/
@@ -48,12 +49,11 @@ static void boardInit(struct Board *board)
   board->ind1 = pinInit(BOARD_USB_IND1);
   pinOutput(board->ind1, BOARD_LED_INV);
 
-  boardSetupClockPll(1);
-  boardSetupMemoryFlashB(&board->memoryPackage);
+  boardSetupClockPll(2);
+  boardSetupMemorySDRAM(&board->memoryPackage);
   storeClockSettings(&sharedClockSettings);
 
   board->memoryPackage.offset = 0;
-  board->running = false;
 
   boardSetupTimerPackage(&board->timerPackage);
   boardSetupButtonPackage(&board->buttonPackage, board->timerPackage.factory);
@@ -65,6 +65,28 @@ static void boardInit(struct Board *board)
   timerEnable(board->timerPackage.timer);
   interruptSetCallback(board->buttonPackage.button, onButtonPressed, board);
   interruptEnable(board->buttonPackage.button);
+}
+/*----------------------------------------------------------------------------*/
+static void boardDeinit(struct Board *board)
+{
+  usbDevSetConnected(board->dfuPackage.usb, false);
+
+  interruptDisable(board->buttonPackage.button);
+  timerDisable(board->timerPackage.timer);
+  deinit(board->dfuPackage.bridge);
+  deinit(board->dfuPackage.dfu);
+  deinit(board->dfuPackage.usb);
+  deinit(board->dfuPackage.timer);
+  deinit(board->buttonPackage.button);
+  deinit(board->buttonPackage.timer);
+  deinit(board->buttonPackage.event);
+  deinit(board->timerPackage.factory);
+  deinit(board->timerPackage.timer);
+  deinit(board->memoryPackage.upper);
+  /* EMC driver should be left in an initialized state */
+
+  boardResetClock();
+  pinWrite(board->ind0, BOARD_LED_INV);
 }
 /*----------------------------------------------------------------------------*/
 static void customStringHeader(const void *, enum UsbLangId,
@@ -81,43 +103,33 @@ static void customStringWrapper(const void *argument, enum UsbLangId,
 /*----------------------------------------------------------------------------*/
 static void onButtonPressed(void *argument)
 {
-  struct Board * const board = argument;
-
-  if (board->running)
-    wqAdd(WQ_DEFAULT, stopFirmwareTask, argument);
-  else
-    wqAdd(WQ_DEFAULT, startFirmwareTask, argument);
+  wqAdd(WQ_DEFAULT, startFirmwareTask, argument);
 }
 /*----------------------------------------------------------------------------*/
 static void onResetRequested(void)
 {
-  if (instance.running)
-    wqAdd(WQ_DEFAULT, stopFirmwareTask, &instance);
-
   wqAdd(WQ_DEFAULT, startFirmwareTask, &instance);
+}
+/*----------------------------------------------------------------------------*/
+static void startFirmware(struct Board *board)
+{
+  const uint32_t *table =
+      emcSdramAddress((const struct EmcSdram *)board->memoryPackage.lower);
+
+  table += board->memoryPackage.offset / sizeof(uint32_t);
+  void (*resetVector)(void) = (void (*)(void))table[1];
+
+  nvicSetVectorTableOffset((uint32_t)table);
+  __setMainStackPointer(table[0]);
+  resetVector();
 }
 /*----------------------------------------------------------------------------*/
 static void startFirmwareTask(void *argument)
 {
   struct Board * const board = argument;
-  uintptr_t address = (uintptr_t)flashGetAddress(board->memoryPackage.upper);
 
-  board->running = true;
-  pinWrite(board->ind1, !BOARD_LED_INV);
-
-  sysCoreM0AppRemap(address + board->memoryPackage.offset);
-  sysClockEnable(CLK_M4_M0APP);
-  sysResetDisable(RST_M0APP);
-}
-/*----------------------------------------------------------------------------*/
-static void stopFirmwareTask(void *argument)
-{
-  struct Board * const board = argument;
-
-  sysResetEnable(RST_M0APP);
-
-  board->running = false;
-  pinWrite(board->ind1, BOARD_LED_INV);
+  boardDeinit(board);
+  startFirmware(board);
 }
 /*----------------------------------------------------------------------------*/
 int main(void)

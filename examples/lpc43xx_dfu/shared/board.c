@@ -12,6 +12,7 @@
 #include <halm/generic/timer_factory.h>
 #include <halm/generic/work_queue.h>
 #include <halm/platform/lpc/clocking.h>
+#include <halm/platform/lpc/emc_sdram.h>
 #include <halm/platform/lpc/flash.h>
 #include <halm/platform/lpc/gptimer.h>
 #include <halm/platform/lpc/pin_int.h>
@@ -88,14 +89,14 @@ void boardSetupClockExt(void)
   clockEnable(MainClock, &(struct GenericClockConfig){CLOCK_EXTERNAL});
 }
 /*----------------------------------------------------------------------------*/
-void boardSetupClockPll(void)
+void boardSetupClockPll(unsigned int divisor)
 {
   static const struct GenericDividerConfig divConfig = {
       .divisor = 2,
       .source = CLOCK_PLL
   };
-  static const struct PllConfig systemPllConfig = {
-      .divisor = 1,
+  const struct PllConfig systemPllConfig = {
+      .divisor = divisor,
       .multiplier = 17,
       .source = CLOCK_EXTERNAL
   };
@@ -200,50 +201,134 @@ void boardSetupTimerPackage(struct TimerPackage *package)
 /*----------------------------------------------------------------------------*/
 void boardSetupMemoryFlash(struct MemoryPackage *package)
 {
-  package->spifi = NULL;
+  package->lower = NULL;
 
-  package->flash = init(Flash, &(struct FlashConfig){FLASH_BANK_A});
-  assert(package->flash != NULL);
+  package->upper = init(Flash, &(struct FlashConfig){FLASH_BANK_A});
+  assert(package->upper != NULL);
 
   package->offset = 0;
-  package->regions = flashGetGeometry(package->flash, package->geometry,
+  package->regions = flashGetGeometry(package->upper, package->geometry,
       ARRAY_SIZE(package->geometry));
   assert(package->regions > 0);
 }
 /*----------------------------------------------------------------------------*/
 void boardSetupMemoryFlashB(struct MemoryPackage *package)
 {
-  package->spifi = NULL;
+  package->lower = NULL;
 
-  package->flash = init(Flash, &(struct FlashConfig){FLASH_BANK_B});
-  assert(package->flash != NULL);
+  package->upper = init(Flash, &(struct FlashConfig){FLASH_BANK_B});
+  assert(package->upper != NULL);
 
   package->offset = 0;
-  package->regions = flashGetGeometry(package->flash, package->geometry,
+  package->regions = flashGetGeometry(package->upper, package->geometry,
       ARRAY_SIZE(package->geometry));
   assert(package->regions > 0);
 }
 /*----------------------------------------------------------------------------*/
 void boardSetupMemoryNOR(struct MemoryPackage *package)
 {
-  package->spifi = boardSetupSpim();
+  package->lower = boardSetupSpim();
 
   const struct W25QQuadConfig w25Config = {
-      .spim = package->spifi,
+      .spim = package->lower,
       .strength = W25_DRV_75PCT,
       .dtr = false,
       .shrink = true,
       .xip = true
   };
-  package->flash = init(W25QQuad, &w25Config);
-  assert(package->flash != NULL);
+  package->upper = init(W25QQuad, &w25Config);
+  assert(package->upper != NULL);
 
   uint32_t capacity = 0;
   uint32_t sector = 0;
 
-  ifGetParam(package->flash, IF_FLASH_SECTOR_SIZE, &sector);
+  ifGetParam(package->upper, IF_FLASH_SECTOR_SIZE, &sector);
   assert(sector > 0);
-  ifGetParam(package->flash, IF_SIZE, &capacity);
+  ifGetParam(package->upper, IF_SIZE, &capacity);
+  assert(capacity > 0);
+
+  package->offset = 0;
+  package->geometry[0].size = sector;
+  package->geometry[0].count = capacity / sector;
+  package->geometry[0].time = 50;
+  package->regions = 1;
+}
+/*----------------------------------------------------------------------------*/
+void boardSetupMemorySDRAM(struct MemoryPackage *package)
+{
+#if 1
+  /* MT48LC8M32 */
+  static const struct EmcSdramConfig emcSdramConfig = {
+      .timings = {
+          .refresh = 15625,
+          .apr = 34,
+          .mrd = 20, /* For 100 MHz clock */
+          .ras = 42,
+          .rc = 70,
+          .rp = 20,
+          .rrd = 14,
+          .wr = 14,
+          .xsr = 70
+      },
+
+      .width = {
+          .bus = 32,
+          .device = 32
+      },
+
+      .clocks = {true, false, true, false},
+      .channel = 0,
+      .latency = 2,
+      .banks = 4,
+      .columns = 9,
+      .rows = 12
+  };
+#else
+  /* AS4C16M16 */
+  static const struct EmcSdramConfig emcSdramConfig = {
+      .timings = {
+          .refresh = 7812,
+          .apr = 35,
+          .mrd = 14,
+          .ras = 42,
+          .rc = 63,
+          .rp = 21,
+          .rrd = 14,
+          .wr = 14,
+          .xsr = 65
+      },
+
+      .width = {
+          .bus = 16,
+          .device = 16
+      },
+
+      .clocks = {true, false, true, false},
+      .channel = 0,
+      .latency = 3,
+      .banks = 4,
+      .columns = 9,
+      .rows = 13
+  };
+#endif
+
+  package->lower = init(EmcSdram, &emcSdramConfig);
+  assert(package->lower != NULL);
+
+  const struct RamProxyConfig ramConfig = {
+      .arena = emcSdramAddress((const struct EmcSdram *)package->lower),
+      .capacity = emcSdramSize((const struct EmcSdram *)package->lower),
+      .granule = 0
+  };
+  package->upper = init(RamProxy, &ramConfig);
+  assert(package->upper != NULL);
+
+  uint32_t capacity = 0;
+  uint32_t sector = 0;
+
+  ifGetParam(package->upper, IF_FLASH_SECTOR_SIZE, &sector);
+  assert(sector > 0);
+  ifGetParam(package->upper, IF_SIZE, &capacity);
   assert(capacity > 0);
 
   package->offset = 0;
@@ -256,20 +341,22 @@ void boardSetupMemoryNOR(struct MemoryPackage *package)
 void boardSetupMemorySRAM(struct MemoryPackage *package, void *arena,
     size_t size)
 {
+  package->lower = NULL;
+
   const struct RamProxyConfig ramConfig = {
       .arena = arena,
       .capacity = size,
       .granule = 0
   };
-  package->flash = init(RamProxy, &ramConfig);
-  assert(package->flash != NULL);
+  package->upper = init(RamProxy, &ramConfig);
+  assert(package->upper != NULL);
 
   uint32_t capacity = 0;
   uint32_t sector = 0;
 
-  ifGetParam(package->flash, IF_FLASH_SECTOR_SIZE, &sector);
+  ifGetParam(package->upper, IF_FLASH_SECTOR_SIZE, &sector);
   assert(sector > 0);
-  ifGetParam(package->flash, IF_SIZE, &capacity);
+  ifGetParam(package->upper, IF_SIZE, &capacity);
   assert(capacity > 0);
 
   package->offset = 0;

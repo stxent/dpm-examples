@@ -13,7 +13,6 @@
 #include <halm/usb/usb.h>
 #include <halm/usb/usb_langid.h>
 #include <xcore/asm.h>
-#include <assert.h>
 /*----------------------------------------------------------------------------*/
 struct Board
 {
@@ -52,7 +51,7 @@ static void boardInit(struct Board *board)
   board->ind1 = pinInit(BOARD_USB_IND1);
   pinOutput(board->ind1, BOARD_LED_INV);
 
-  boardSetupClockPll();
+  boardSetupClockPll(1);
   boardSetupMemoryFlash(&board->memoryPackage);
   storeClockSettings(&sharedClockSettings);
 
@@ -61,7 +60,7 @@ static void boardInit(struct Board *board)
   boardSetupTimerPackage(&board->timerPackage);
   boardSetupButtonPackage(&board->buttonPackage, board->timerPackage.factory);
   boardSetupDfuPackage(&board->dfuPackage, board->timerPackage.factory,
-      board->memoryPackage.flash, board->memoryPackage.geometry,
+      board->memoryPackage.upper, board->memoryPackage.geometry,
       board->memoryPackage.regions, board->memoryPackage.offset,
       onResetRequested);
 
@@ -115,7 +114,7 @@ static void onResetRequested(void)
 /*----------------------------------------------------------------------------*/
 static void startFirmware(struct Board *board)
 {
-  const uint32_t *table = flashGetAddress(board->memoryPackage.flash);
+  const uint32_t *table = flashGetAddress(board->memoryPackage.upper);
 
   table += board->memoryPackage.offset / sizeof(uint32_t);
   void (*resetVector)(void) = (void (*)(void))table[1];
