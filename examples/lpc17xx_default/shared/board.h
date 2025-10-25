@@ -46,8 +46,6 @@
 #define BOARD_SENSOR_INT_1      PIN(0, 2)
 #define BOARD_SENSOR_INT        BOARD_SENSOR_INT_0
 
-#define BOARD_USB_IND0          BOARD_LED_1
-#define BOARD_USB_IND1          BOARD_LED_2
 #define BOARD_USB_CDC_INT       0x81
 #define BOARD_USB_CDC_RX        0x02
 #define BOARD_USB_CDC_TX        0x82
