@@ -8,13 +8,13 @@
 #include <dpm/platform/lpc/irda.h>
 #include <dpm/platform/lpc/memory_bus_dma.h>
 #include <dpm/platform/lpc/memory_bus_gpio.h>
+#include <dpm/platform/lpc/one_wire_ssp.h>
 #include <halm/generic/work_queue.h>
 #include <halm/platform/lpc/clocking.h>
 #include <halm/platform/lpc/fast_gpio_bus.h>
 #include <halm/platform/lpc/gptimer.h>
 #include <halm/platform/lpc/i2c.h>
 #include <halm/platform/lpc/i2s_dma.h>
-#include <halm/platform/lpc/one_wire_ssp.h>
 #include <halm/platform/lpc/pin_int.h>
 #include <halm/platform/lpc/serial.h>
 #include <halm/platform/lpc/spi_dma.h>
