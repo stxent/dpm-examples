@@ -14,9 +14,6 @@
 #include <halm/platform/lpc/usb_device.h>
 #include <assert.h>
 /*----------------------------------------------------------------------------*/
-#define BOOT_PIN        PIN(2, 10)
-#define BOOT_PIN_INVERT 0
-
 #define FIRMWARE_OFFSET 0x4000
 #define MAGIC_WORD      0x3A84508FUL
 #define TRANSFER_SIZE   128
@@ -33,12 +30,12 @@ static inline void fwRequestClear(void)
 /*----------------------------------------------------------------------------*/
 static bool isDfuRequested(void)
 {
-  const struct Pin bootPin = pinInit(BOOT_PIN);
+  const struct Pin bootPin = pinInit(BOARD_BUTTON);
   pinInput(bootPin);
-  pinSetPull(bootPin, BOOT_PIN_INVERT ? PIN_PULLUP : PIN_PULLDOWN);
+  pinSetPull(bootPin, BOARD_BUTTON_INV ? PIN_PULLUP : PIN_PULLDOWN);
 
   const bool fwRequest = *(const uint32_t *)backupDomainAddress() == MAGIC_WORD;
-  const bool pinRequest = pinRead(bootPin) ^ BOOT_PIN_INVERT;
+  const bool pinRequest = pinRead(bootPin) ^ BOARD_BUTTON_INV;
 
   return fwRequest || pinRequest;
 }
@@ -80,7 +77,7 @@ int main(void)
   assert(regions != 0);
 
   struct Timer * const timer = boardSetupTimer();
-  struct Entity * const usb = boardSetupUsb();
+  struct Usb * const usb = boardSetupUsb();
 
   const struct DfuConfig dfuConfig = {
       .device = usb,

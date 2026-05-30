@@ -22,13 +22,13 @@
 #define BOARD_USB_IND0  BOARD_USB0_IND0
 #define BOARD_USB_IND1  BOARD_USB0_IND1
 /*----------------------------------------------------------------------------*/
-struct Entity;
 struct Dfu;
 struct DfuBridge;
 struct Interface;
 struct Interrupt;
 struct Timer;
 struct TimerFactory;
+struct Usb;
 
 struct ButtonPackage
 {
@@ -40,7 +40,7 @@ struct ButtonPackage
 struct DfuPackage
 {
   struct Timer *timer;
-  struct Entity *usb;
+  struct Usb *usb;
   struct Dfu *dfu;
   struct DfuBridge *bridge;
 };
@@ -74,9 +74,9 @@ void boardSetupMemorySDRAM(struct MemoryPackage *);
 void boardSetupMemorySRAM(struct MemoryPackage *, void *, size_t);
 struct Interface *boardSetupSpim(void);
 struct Timer *boardSetupTimer(void);
-struct Entity *boardSetupUsb(void);
-struct Entity *boardSetupUsb0(void);
-struct Entity *boardSetupUsb1(void);
+struct Usb *boardSetupUsb(void);
+struct Usb *boardSetupUsb0(void);
+struct Usb *boardSetupUsb1(void);
 
 void boardSetupButtonPackage(struct ButtonPackage *, struct TimerFactory *);
 void boardSetupDfuPackage(struct DfuPackage *, struct TimerFactory *,

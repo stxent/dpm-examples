@@ -30,6 +30,7 @@ set(TEMPLATES_LIST
         gnss_ublox
         radio_tea5767
         sensor_ds18b20
+        sensor_hmc5883
         sensor_mpu6000
         sensor_ms5607
         sensor_sht20

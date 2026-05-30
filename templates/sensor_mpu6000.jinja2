@@ -10,6 +10,8 @@
 {% endblock %}
 
 {% block declarations %}
+#define TIMESTAMP_SUPPORT
+
 enum
 {
   SENSOR_TAG_ACCEL,
@@ -29,6 +31,7 @@ enum
 
   const struct MPU60XXConfig mpuConfig = {
       .bus = spi,
+      .chrono = chrono,
       .event = event,
       .timer = MAKE_SENSOR_TIMER(),
       .address = 0,
@@ -43,6 +46,7 @@ enum
 
   const struct MPU60XXConfig mpuConfig = {
       .bus = i2c,
+      .chrono = chrono,
       .event = event,
       .timer = MAKE_SENSOR_TIMER(),
       .address = 0x68,

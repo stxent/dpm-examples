@@ -18,6 +18,7 @@
 #include <halm/platform/lpc/spifi.h>
 #include <halm/platform/lpc/system.h>
 #include <halm/platform/lpc/usb_device.h>
+#include <halm/usb/cdc_acm.h>
 #include <assert.h>
 #include <string.h>
 /*----------------------------------------------------------------------------*/
@@ -26,7 +27,7 @@
 [[gnu::alias("boardSetupSensorEvent0")]]
     struct Interrupt *boardSetupSensorEvent(enum InputEvent, enum PinPull);
 
-[[gnu::alias("boardSetupSerial1")]] struct Interface *boardSetupSerial(void);
+[[gnu::alias("boardSetupUsbSerial")]] struct Interface *boardSetupSerial(void);
 [[gnu::alias("boardSetupSerial2")]] struct Interface *boardSetupSerialAux(void);
 
 [[gnu::alias("boardSetupSpi0")]] struct Interface *boardSetupSpi(void);
@@ -37,7 +38,7 @@
 [[gnu::alias("boardSetupTimer1")]] struct Timer *boardSetupTimerAux0(void);
 [[gnu::alias("boardSetupTimer2")]] struct Timer *boardSetupTimerAux1(void);
 
-[[gnu::alias("boardSetupUsb0")]] struct Entity *boardSetupUsb(void);
+[[gnu::alias("boardSetupUsb0")]] struct Usb *boardSetupUsb(void);
 
 static void enablePeriphClock(const void *);
 /*----------------------------------------------------------------------------*/
@@ -585,7 +586,7 @@ struct Interrupt *boardSetupTouchEvent(enum InputEvent edge, enum PinPull pull)
   return interrupt;
 }
 /*----------------------------------------------------------------------------*/
-struct Entity *boardSetupUsb0(void)
+struct Usb *boardSetupUsb0(void)
 {
   /* Clocks */
   static const struct PllConfig usbPllConfig = {
@@ -611,12 +612,12 @@ struct Entity *boardSetupUsb0(void)
   clockEnable(Usb0Clock, &(struct GenericClockConfig){CLOCK_USB_PLL});
   while (!clockReady(Usb0Clock));
 
-  struct Entity * const usb = init(UsbDevice, &usb0Config);
+  struct Usb * const usb = init(UsbDevice, &usb0Config);
   assert(usb != NULL);
   return usb;
 }
 /*----------------------------------------------------------------------------*/
-struct Entity *boardSetupUsb1(void)
+struct Usb *boardSetupUsb1(void)
 {
   /* Clocks */
   static const struct PllConfig audioPllConfig = {
@@ -654,7 +655,31 @@ struct Entity *boardSetupUsb1(void)
   clockEnable(Usb1Clock, &(struct GenericClockConfig){CLOCK_IDIVA});
   while (!clockReady(Usb1Clock));
 
-  struct Entity * const usb = init(UsbDevice, &usb1Config);
+  struct Usb * const usb = init(UsbDevice, &usb1Config);
   assert(usb != NULL);
   return usb;
+}
+/*----------------------------------------------------------------------------*/
+struct Interface *boardSetupUsbSerial(void)
+{
+  struct Usb * const usb = boardSetupUsb();
+
+  const struct CdcAcmConfig config = {
+      .device = usb,
+      .arena = NULL,
+      .rxBuffers = 4,
+      .txBuffers = 16,
+
+      .endpoints = {
+          .interrupt = BOARD_USB_CDC_INT,
+          .rx = BOARD_USB_CDC_RX,
+          .tx = BOARD_USB_CDC_TX
+      }
+  };
+
+  struct Interface * const serial = init(CdcAcm, &config);
+  assert(serial != NULL);
+
+  usbDevSetConnected(usb, true);
+  return serial;
 }

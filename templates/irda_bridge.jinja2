@@ -87,7 +87,7 @@ int main(void)
   struct Interface * const irda = boardSetupIrda(
       pinRead(button) ? !BOARD_BUTTON_INV : BOARD_BUTTON_INV);
 
-  struct Entity * const usb = boardSetupUsb();
+  struct Usb * const usb = boardSetupUsb();
 
   const struct CdcAcmConfig config = {
       .device = usb,

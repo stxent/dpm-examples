@@ -30,10 +30,10 @@
 
 DEFINE_WQ_IRQ(WQ_LP)
 /*----------------------------------------------------------------------------*/
-struct Entity;
 struct Interface;
 struct Interrupt;
 struct Timer;
+struct Usb;
 /*----------------------------------------------------------------------------*/
 void boardSetupClockExt(void);
 void boardSetupClockPll(void);
@@ -51,8 +51,8 @@ struct Timer *boardSetupTimer3(void);
 struct Timer *boardSetupTimerAux(void);
 struct Timer *boardSetupTimerAux0(void);
 struct Timer *boardSetupTimerAux1(void);
-struct Entity *boardSetupUsb(void);
-struct Entity *boardSetupUsbFs(void);
-struct Entity *boardSetupUsbHs(void);
+struct Usb *boardSetupUsb(void);
+struct Usb *boardSetupUsbFs(void);
+struct Usb *boardSetupUsbHs(void);
 /*----------------------------------------------------------------------------*/
 #endif /* M48X_DEFAULT_SHARED_BOARD_H_ */

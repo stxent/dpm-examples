@@ -20,6 +20,7 @@
 #include <halm/platform/lpc/spi_dma.h>
 #include <halm/platform/lpc/usb_device.h>
 #include <halm/platform/lpc/wdt.h>
+#include <halm/usb/cdc_acm.h>
 #include <assert.h>
 /*----------------------------------------------------------------------------*/
 [[gnu::alias("boardSetupDisplayBusDma")]]
@@ -28,7 +29,7 @@
 [[gnu::alias("boardSetupSensorEvent0")]]
     struct Interrupt *boardSetupSensorEvent(enum InputEvent, enum PinPull);
 
-[[gnu::alias("boardSetupSerial1")]] struct Interface *boardSetupSerial(void);
+[[gnu::alias("boardSetupUsbSerial")]] struct Interface *boardSetupSerial(void);
 [[gnu::alias("boardSetupSerial3")]] struct Interface *boardSetupSerialAux(void);
 
 [[gnu::alias("boardSetupSpi1")]] struct Interface *boardSetupSpi(void);
@@ -447,7 +448,7 @@ struct Interrupt *boardSetupTouchEvent(enum InputEvent edge, enum PinPull pull)
   return interrupt;
 }
 /*----------------------------------------------------------------------------*/
-struct Entity *boardSetupUsb(void)
+struct Usb *boardSetupUsb(void)
 {
   /* Clocks */
   static const struct GenericClockConfig usbClockConfig = {
@@ -476,7 +477,31 @@ struct Entity *boardSetupUsb(void)
   clockEnable(UsbClock, &usbClockConfig);
   while (!clockReady(UsbClock));
 
-  struct Entity * const usb = init(UsbDevice, &usbConfig);
+  struct Usb * const usb = init(UsbDevice, &usbConfig);
   assert(usb != NULL);
   return usb;
+}
+/*----------------------------------------------------------------------------*/
+struct Interface *boardSetupUsbSerial(void)
+{
+  struct Usb * const usb = boardSetupUsb();
+
+  const struct CdcAcmConfig config = {
+      .device = usb,
+      .arena = NULL,
+      .rxBuffers = 4,
+      .txBuffers = 16,
+
+      .endpoints = {
+          .interrupt = BOARD_USB_CDC_INT,
+          .rx = BOARD_USB_CDC_RX,
+          .tx = BOARD_USB_CDC_TX
+      }
+  };
+
+  struct Interface * const serial = init(CdcAcm, &config);
+  assert(serial != NULL);
+
+  usbDevSetConnected(usb, true);
+  return serial;
 }

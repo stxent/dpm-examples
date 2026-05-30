@@ -10,6 +10,8 @@
 {% endblock %}
 
 {% block declarations %}
+#define TIMESTAMP_SUPPORT
+
 enum
 {
   SENSOR_TAG_BARO,
@@ -25,6 +27,7 @@ enum
 
   const struct MS56XXConfig baroConfig = {
       .bus = spi,
+      .chrono = chrono,
       .timer = MAKE_SENSOR_TIMER(),
       .address = 0,
       .rate = 400000,
@@ -38,6 +41,7 @@ enum
 
   const struct MS56XXConfig baroConfig = {
       .bus = i2c,
+      .chrono = chrono,
       .timer = MAKE_SENSOR_TIMER(),
       .address = 0x77,
       .rate = 400000,

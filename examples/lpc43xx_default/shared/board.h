@@ -58,11 +58,11 @@
 
 DEFINE_WQ_IRQ(WQ_LP)
 /*----------------------------------------------------------------------------*/
-struct Entity;
 struct Interface;
 struct Interrupt;
 struct Stream;
 struct Timer;
+struct Usb;
 
 struct StreamPackage
 {
@@ -102,8 +102,9 @@ struct Timer *boardSetupTimerAux(void);
 struct Timer *boardSetupTimerAux0(void);
 struct Timer *boardSetupTimerAux1(void);
 struct Interrupt *boardSetupTouchEvent(enum InputEvent, enum PinPull);
-struct Entity *boardSetupUsb(void);
-struct Entity *boardSetupUsb0(void);
-struct Entity *boardSetupUsb1(void);
+struct Usb *boardSetupUsb(void);
+struct Usb *boardSetupUsb0(void);
+struct Usb *boardSetupUsb1(void);
+struct Interface *boardSetupUsbSerial(void);
 /*----------------------------------------------------------------------------*/
 #endif /* LPC43XX_DEFAULT_SHARED_BOARD_H_ */

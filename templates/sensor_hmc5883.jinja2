@@ -10,6 +10,8 @@
 {% endblock %}
 
 {% block declarations %}
+#define TIMESTAMP_SUPPORT
+
 enum
 {
   SENSOR_TAG_MAG,
@@ -24,6 +26,7 @@ enum
 
   const struct HMC5883Config magConfig = {
       .bus = i2c,
+      .chrono = chrono,
       .event = event,
       .timer = MAKE_SENSOR_TIMER(),
       .address = 0x1E,

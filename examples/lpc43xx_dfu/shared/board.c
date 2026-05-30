@@ -26,7 +26,7 @@
 /*----------------------------------------------------------------------------*/
 #define TRANSFER_SIZE 128
 
-[[gnu::alias("boardSetupUsb0")]] struct Entity *boardSetupUsb(void);
+[[gnu::alias("boardSetupUsb0")]] struct Usb *boardSetupUsb(void);
 /*----------------------------------------------------------------------------*/
 static const struct ExternalOscConfig extOscConfig = {
     .frequency = 12000000
@@ -397,7 +397,7 @@ struct Timer *boardSetupTimer(void)
   return timer;
 }
 /*----------------------------------------------------------------------------*/
-struct Entity *boardSetupUsb0(void)
+struct Usb *boardSetupUsb0(void)
 {
   /* Clocks */
   static const struct PllConfig usbPllConfig = {
@@ -423,12 +423,12 @@ struct Entity *boardSetupUsb0(void)
   clockEnable(Usb0Clock, &(struct GenericClockConfig){CLOCK_USB_PLL});
   while (!clockReady(Usb0Clock));
 
-  struct Entity * const usb = init(UsbDevice, &usb0Config);
+  struct Usb * const usb = init(UsbDevice, &usb0Config);
   assert(usb != NULL);
   return usb;
 }
 /*----------------------------------------------------------------------------*/
-struct Entity *boardSetupUsb1(void)
+struct Usb *boardSetupUsb1(void)
 {
   /* Clocks */
   static const struct PllConfig audioPllConfig = {
@@ -466,7 +466,7 @@ struct Entity *boardSetupUsb1(void)
   clockEnable(Usb1Clock, &(struct GenericClockConfig){CLOCK_IDIVA});
   while (!clockReady(Usb1Clock));
 
-  struct Entity * const usb = init(UsbDevice, &usb1Config);
+  struct Usb * const usb = init(UsbDevice, &usb1Config);
   assert(usb != NULL);
   return usb;
 }

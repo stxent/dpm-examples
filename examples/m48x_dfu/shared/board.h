@@ -22,12 +22,12 @@
 #define BOARD_USB_IND0    BOARD_LED_1
 #define BOARD_USB_IND1    BOARD_LED_2
 /*----------------------------------------------------------------------------*/
-struct Entity;
 struct Dfu;
 struct DfuBridge;
 struct Interface;
 struct Interrupt;
 struct Timer;
+struct Usb;
 
 struct ButtonPackage
 {
@@ -39,7 +39,7 @@ struct ButtonPackage
 struct DfuPackage
 {
   struct Timer *timer;
-  struct Entity *usb;
+  struct Usb *usb;
   struct Dfu *dfu;
   struct DfuBridge *bridge;
 };
@@ -70,9 +70,9 @@ struct Timer *boardSetupTimer(void);
 struct Timer *boardSetupTimerAux0(void);
 struct Timer *boardSetupTimerAux1(void);
 struct Timer *boardSetupTimerAux2(void);
-struct Entity *boardSetupUsb(void);
-struct Entity *boardSetupUsbFs(void);
-struct Entity *boardSetupUsbHs(void);
+struct Usb *boardSetupUsb(void);
+struct Usb *boardSetupUsbFs(void);
+struct Usb *boardSetupUsbHs(void);
 
 void boardSetupButtonPackage(struct ButtonPackage *);
 void boardSetupDfuPackage(struct DfuPackage *, struct Interface *,
