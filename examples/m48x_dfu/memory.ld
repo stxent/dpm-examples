@@ -8,7 +8,7 @@ EXTERN(vector_table)
 
 MEMORY
 {
-  /* Internal Flash Bank 0 */
+  /* Internal flash bank 0 */
   ROM (rx)    : ORIGIN = ${ROM_ORIGIN}, LENGTH = ${ROM_LENGTH}
   RAM (rwx)   : ORIGIN = 0x20000000, LENGTH = 128K
 

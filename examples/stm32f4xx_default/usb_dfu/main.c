@@ -1,6 +1,6 @@
 /*
- * lpc17xx_default/usb_dfu/main.c
- * Copyright (C) 2022 xent
+ * stm32f4xx_default/usb_dfu/main.c
+ * Copyright (C) 2026 xent
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
@@ -9,12 +9,12 @@
 #include <halm/core/cortex/nvic.h>
 #include <halm/generic/flash.h>
 #include <halm/generic/work_queue.h>
-#include <halm/platform/lpc/backup_domain.h>
-#include <halm/platform/lpc/flash.h>
-#include <halm/platform/lpc/usb_device.h>
+#include <halm/platform/stm32/backup_domain.h>
+#include <halm/platform/stm32/flash.h>
+#include <halm/platform/stm32/usb_device.h>
 #include <assert.h>
 /*----------------------------------------------------------------------------*/
-#define FIRMWARE_OFFSET 0x4000
+#define FIRMWARE_OFFSET 0x8000
 #define MAGIC_WORD      0x3A84508FUL
 #define TRANSFER_SIZE   128
 /*----------------------------------------------------------------------------*/
@@ -25,7 +25,9 @@ static void startFirmware(void);
 /*----------------------------------------------------------------------------*/
 static inline void fwRequestClear(void)
 {
+  backupDomainUnlock();
   *(uint32_t *)backupDomainAddress() = 0;
+  backupDomainLock();
 }
 /*----------------------------------------------------------------------------*/
 static bool isDfuRequested(void)
@@ -50,9 +52,8 @@ static void startFirmware(void)
 {
   const uint32_t * const table = (const uint32_t *)FIRMWARE_OFFSET;
 
-  if (((table[0] >= 0x10000000 && table[0] <= 0x10008000)
-          || (table[0] >= 0x2007C000 && table[0] <= 0x20084000))
-      && table[1] < 0x00080000)
+  if ((table[0] >= 0x20000000 && table[0] <= 0x20020000)
+      && (table[1] >= 0x08000000 && table[1] < 0x08100000))
   {
     void (*resetVector)(void) = (void (*)(void))table[1];
 
@@ -64,6 +65,7 @@ static void startFirmware(void)
 /*----------------------------------------------------------------------------*/
 int main(void)
 {
+  backupDomainEnable();
   if (!isDfuRequested())
     startFirmware();
 
@@ -73,7 +75,7 @@ int main(void)
   struct Interface * const flash = init(Flash, NULL);
   assert(flash != NULL);
 
-  struct FlashGeometry layout[2];
+  struct FlashGeometry layout[3];
   const size_t regions = flashGetGeometry(flash, layout, ARRAY_SIZE(layout));
   assert(regions != 0);
 
@@ -95,7 +97,7 @@ int main(void)
       .offset = FIRMWARE_OFFSET,
       .geometry = layout,
       .regions = regions,
-      .chunk = 0,
+      .chunk = 4096,
       .writeonly = false
   };
   struct DfuBridge * const bridge = init(DfuBridge, &bridgeConfig);

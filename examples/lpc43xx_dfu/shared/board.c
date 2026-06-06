@@ -180,6 +180,7 @@ void boardSetupDfuPackage(struct DfuPackage *package,
       .offset = offset,
       .geometry = geometry,
       .regions = regions,
+      .chunk = 0,
       .writeonly = false
   };
   package->bridge = init(DfuBridge, &bridgeConfig);

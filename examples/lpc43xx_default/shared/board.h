@@ -18,15 +18,18 @@
 #define BOARD_LED               BOARD_LED_0
 #define BOARD_LED_INV           false
 #define BOARD_PHY_RESET         PIN(PORT_5, 2)
-/* Chip Select on the SPI connector */
-#define BOARD_SPI0_CS0          PIN(PORT_1, 0)
-/* Chip Select for the Touch Sensor */
-#define BOARD_SPI0_CS1          PIN(PORT_5, 0)
-#define BOARD_SPI1_CS0          PIN(PORT_1, 5)
-#define BOARD_SPI_CS            PIN(PORT_5, 0)
 #define BOARD_USB0_IND0         PIN(PORT_6, 8)
 #define BOARD_USB0_IND1         PIN(PORT_6, 7)
 #define BOARD_UART_BUFFER       512
+
+/* Chip Select on the SPI connector for SPI0 */
+#define BOARD_SPI0_CS0          PIN(PORT_1, 0)
+/* Chip Select for the Touch Sensor (SPI0) */
+#define BOARD_SPI0_CS1          PIN(PORT_5, 0)
+/* Chip Select on the SPI connector for SPI1 */
+#define BOARD_SPI1_CS0          PIN(PORT_1, 5)
+
+#define BOARD_SPI_CS            BOARD_SPI0_CS0
 
 #define BOARD_DISPLAY_BL        PIN(PORT_2, 12)
 #define BOARD_DISPLAY_CS        PIN(PORT_2, 2)

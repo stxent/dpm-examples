@@ -17,13 +17,16 @@
 #define BOARD_LED_2             PIN(1, 8)
 #define BOARD_LED               BOARD_LED_0
 #define BOARD_LED_INV           false
+#define BOARD_UART_BUFFER       512
+
+/* Chip Select on the SDMMC slot */
 #define BOARD_SPI0_CS0          PIN(0, 22)
 /* Chip Select on the SPI connector */
 #define BOARD_SPI1_CS0          PIN(0, 6)
 /* Chip Select for the Touch Sensor */
 #define BOARD_SPI1_CS1          PIN(1, 15)
+
 #define BOARD_SPI_CS            BOARD_SPI1_CS0
-#define BOARD_UART_BUFFER       512
 
 #define BOARD_DISPLAY_BL        PIN(1, 26)
 #define BOARD_DISPLAY_CS        PIN(1, 14)
@@ -32,7 +35,7 @@
 #define BOARD_DISPLAY_RW        PIN(1, 1)
 
 #define BOARD_DISPLAY_SPI_BL    BOARD_DISPLAY_BL
-#define BOARD_DISPLAY_SPI_CS    BOARD_SPI1_CS0
+#define BOARD_DISPLAY_SPI_CS    BOARD_SPI1_CS1
 #define BOARD_DISPLAY_SPI_RESET PIN(4, 29)
 #define BOARD_DISPLAY_SPI_RS    PIN(4, 28)
 

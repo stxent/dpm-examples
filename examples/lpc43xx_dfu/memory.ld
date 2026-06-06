@@ -8,7 +8,7 @@ EXTERN(vector_table)
 
 MEMORY
 {
-  /* Internal Flash Bank A or SRAM0 */
+  /* Internal flash bank A or SRAM0 */
   ROM (rx)    : ORIGIN = ${ROM_ORIGIN}, LENGTH = ${ROM_LENGTH}
   /* Executable region for user firmware */
   EXE (rx)    : ORIGIN = ${EXE_ORIGIN}, LENGTH = ${EXE_LENGTH}

@@ -12,7 +12,7 @@ option(USE_HEX "Convert executables to Intel HEX format." OFF)
 option(USE_DFU "Enable memory layout compatible with a bootloader." OFF)
 option(USE_LTO "Enable Link Time Optimization." OFF)
 
-option(TARGET_NOR "Use external NOR Flash for an artifact if available." OFF)
+option(TARGET_NOR "Use external NOR flash for an artifact if available." OFF)
 option(TARGET_SDRAM "Use external SDRAM for an artifact if available." OFF)
 option(TARGET_SRAM "Use embedded SRAM for an artifact if available." OFF)
 
