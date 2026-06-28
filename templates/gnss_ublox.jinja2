@@ -11,30 +11,59 @@
 #include <stdio.h>
 #include <string.h>
 /*----------------------------------------------------------------------------*/
+#define TEXT_BUFFER_SIZE 128
+
 struct Context
 {
+  struct Timer64 *chrono;
   struct Ublox *receiver;
   struct Interface *streamText;
   struct Interface *streamWork;
+  struct Pin led;
   unsigned int pass;
+  enum FixType fix;
 };
 /*----------------------------------------------------------------------------*/
 static const uint32_t testUartRates[] = {9600, 57600, 115200, 230400, 460800};
 static const uint32_t testWorkRate = 230400;
 /*----------------------------------------------------------------------------*/
+static void flushSerialTask(void *argument)
+{
+  struct Context * const context = argument;
+  char buffer[TEXT_BUFFER_SIZE];
+
+  while (ifRead(context->streamText, buffer, sizeof(buffer)) != 0);
+}
+/*----------------------------------------------------------------------------*/
+static void onSerialEvent(void *argument)
+{
+  struct Context * const context = argument;
+  uint32_t available;
+
+  if (ifGetParam(context->streamText, IF_RX_AVAILABLE, &available) == E_OK)
+  {
+    if (available)
+      wqAdd(WQ_DEFAULT, flushSerialTask, context);
+  }
+}
+/*----------------------------------------------------------------------------*/
 static void onConfigFinished(void *argument, bool status)
 {
   struct Context * const context = argument;
-  char buffer[64];
+  const uint64_t localtime = timerGetValue64(context->chrono);
+  uint32_t rate = context->pass ?
+      testUartRates[context->pass - 1] : testWorkRate;
+  char buffer[TEXT_BUFFER_SIZE];
 
-  sprintf(buffer, "CFG %s\r\n", status ? "true" : "false");
+  sprintf(buffer, "%-10lu CFG %u %s\r\n",
+      (unsigned long)localtime, (unsigned int)rate, status ? "true" : "false");
   ifWrite(context->streamText, buffer, strlen(buffer));
 
   if (!status)
   {
-    uint32_t rate = 0;
+    rate = 0;
 
-    while (1)
+    while (!rate)
     {
       if (++context->pass > ARRAY_SIZE(testUartRates))
         context->pass = 0;
@@ -49,19 +78,42 @@ static void onConfigFinished(void *argument, bool status)
         rate = testWorkRate;
     }
 
+    pinWrite(context->led, BOARD_LED_INV);
     ifSetParam(context->streamWork, IF_RATE, &rate);
     ubloxReset(context->receiver, testWorkRate);
   }
 }
 /*----------------------------------------------------------------------------*/
-static void onPositionReceived(void *argument, int32_t lat, int32_t lon,
-    int32_t alt)
+static void onPositionReceived(void *argument,
+    int32_t lat, int32_t lon, int32_t alt, int32_t msl)
 {
   struct Context * const context = argument;
-  char buffer[64];
+  const uint64_t localtime = timerGetValue64(context->chrono);
+  const uint64_t timestamp = ubloxGetSolutionTime(context->receiver);
+  char buffer[TEXT_BUFFER_SIZE];
 
-  sprintf(buffer, "LLH %li %li %li\r\n",
-      (long int)lat, (long int)lon, (long int)alt);
+  const unsigned long iPart = timestamp / 1000000;
+  const unsigned long fPart = (timestamp % 1000000) / 1000;
+
+  sprintf(buffer, "%-10lu POS %lu.%03lu %li %li %li %li\r\n",
+      (unsigned long)localtime, iPart, fPart,
+      (long)lat, (long)lon, (long)alt, (long)msl);
+  ifWrite(context->streamText, buffer, strlen(buffer));
+}
+/*----------------------------------------------------------------------------*/
+static void onPrecisionReceived(void *argument, uint32_t hAccuracy,
+    uint32_t vAccuracy, uint32_t sAccuracy)
+{
+  struct Context * const context = argument;
+  const uint64_t localtime = timerGetValue64(context->chrono);
+  char buffer[TEXT_BUFFER_SIZE];
+
+  const long hAcc = hAccuracy != UINT32_MAX ? (long)hAccuracy : -1;
+  const long vAcc = vAccuracy != UINT32_MAX ? (long)vAccuracy : -1;
+  const long sAcc = sAccuracy != UINT32_MAX ? (long)sAccuracy : -1;
+
+  sprintf(buffer, "%-10lu ACC %li %li %li\r\n",
+      (unsigned long)localtime, hAcc, vAcc, sAcc);
   ifWrite(context->streamText, buffer, strlen(buffer));
 }
 /*----------------------------------------------------------------------------*/
@@ -69,44 +121,63 @@ static void onSatelliteCountReceived(void *argument,
     const struct SatelliteInfo *info)
 {
   struct Context * const context = argument;
-  char buffer[64];
+  const uint64_t localtime = timerGetValue64(context->chrono);
+  char buffer[TEXT_BUFFER_SIZE];
 
-  sprintf(buffer, "SAT %u %u %u %u %u\r\n",
+  sprintf(buffer, "%-10lu SAT %u %u %u %u %u\r\n",
+      (unsigned long)localtime,
       (unsigned int)info->gps, (unsigned int)info->glonass,
       (unsigned int)info->beidou, (unsigned int)info->galileo,
       (unsigned int)info->sbas);
   ifWrite(context->streamText, buffer, strlen(buffer));
 }
 /*----------------------------------------------------------------------------*/
-static void onStatusReceived(void *argument, enum FixType fix)
+static void onStatusReceived(void *argument, enum FixType fix, uint16_t pdop)
 {
   struct Context * const context = argument;
-  char buffer[64];
+  const uint64_t localtime = timerGetValue64(context->chrono);
+  char buffer[TEXT_BUFFER_SIZE];
 
-  sprintf(buffer, "FIX %u\r\n", (unsigned int)fix);
+  context->fix = fix;
+  if (context->fix < FIX_3D)
+    pinWrite(context->led, BOARD_LED_INV);
+
+  sprintf(buffer, "%-10lu FIX %u %u\r\n",
+      (unsigned long)localtime, (unsigned int)fix, (unsigned int)pdop);
   ifWrite(context->streamText, buffer, strlen(buffer));
 }
 /*----------------------------------------------------------------------------*/
-static void onTimeReceived(void *argument, uint64_t timestamp)
+static void onTimeReceived(void *argument, uint64_t timestamp, int8_t leaps)
 {
   struct Context * const context = argument;
-  char buffer[64];
+  const uint64_t localtime = timerGetValue64(context->chrono);
+  char buffer[TEXT_BUFFER_SIZE];
 
-  uint64_t iPart = timestamp / 1000000;
-  uint32_t fPart = timestamp % 1000000;
+  if (context->fix >= FIX_3D)
+    pinToggle(context->led);
 
-  sprintf(buffer, "PPS %llu.%06lu\r\n",
-      (unsigned long long)iPart, (unsigned long)fPart);
+  const unsigned long iPart = timestamp / 1000000;
+  const unsigned long fPart = timestamp % 1000000;
+
+  sprintf(buffer, "%-10lu PPS %lu.%06lu %i\r\n",
+      (unsigned long)localtime, iPart, fPart, (int)leaps);
   ifWrite(context->streamText, buffer, strlen(buffer));
 }
 /*----------------------------------------------------------------------------*/
-static void onVelocityReceived(void *argument, int32_t n, int32_t e, int32_t d)
+static void onVelocityReceived(void *argument,
+    int32_t north, int32_t east, int32_t down)
 {
   struct Context * const context = argument;
-  char buffer[64];
+  const uint64_t localtime = timerGetValue64(context->chrono);
+  const uint64_t timestamp = ubloxGetSolutionTime(context->receiver);
+  char buffer[TEXT_BUFFER_SIZE];
 
-  sprintf(buffer, "NED %li %li %li\r\n",
-      (long int)n, (long int)e, (long int)d);
+  const unsigned long iPart = timestamp / 1000000;
+  const unsigned long fPart = (timestamp % 1000000) / 1000;
+
+  sprintf(buffer, "%-10lu VEL %lu.%03lu %li %li %li\r\n",
+      (unsigned long)localtime, iPart, fPart,
+      (long)north, (long)east, (long)down);
   ifWrite(context->streamText, buffer, strlen(buffer));
 }
 /*----------------------------------------------------------------------------*/
@@ -150,15 +221,20 @@ int main(void)
   assert(receiver != NULL);
 
   struct Context context = {
+      .chrono = chrono,
       .receiver = receiver,
       .streamText = streamText,
       .streamWork = streamWork,
-      .pass = 1
+      .led = led,
+      .pass = 1,
+      .fix = FIX_NONE
   };
 
+  ifSetCallback(streamText, onSerialEvent, &context);
   ubloxSetCallbackArgument(receiver, &context);
   ubloxSetConfigFinishedCallback(receiver, onConfigFinished);
   ubloxSetPositionReceivedCallback(receiver, onPositionReceived);
+  ubloxSetPrecisionReceivedCallback(receiver, onPrecisionReceived);
   ubloxSetSatelliteCountReceivedCallback(receiver, onSatelliteCountReceived);
   ubloxSetStatusReceivedCallback(receiver, onStatusReceived);
   ubloxSetTimeReceivedCallback(receiver, onTimeReceived);
