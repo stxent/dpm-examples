@@ -17,17 +17,17 @@ MEMORY
   /* Internal EEPROM */
   EEPROM (r)  : ORIGIN = 0x20040000, LENGTH = 16K - 128
 
-  AHB (rw)   : ORIGIN = 0x40000000, LENGTH = 72K
-  RTC (rw)   : ORIGIN = 0x40040000, LENGTH = 64K
-  CLK (rw)   : ORIGIN = 0x40050000, LENGTH = 64K
-  APB0 (rw)  : ORIGIN = 0x40080000, LENGTH = 64K
-  APB1 (rw)  : ORIGIN = 0x400A0000, LENGTH = 64K
-  APB2 (rw)  : ORIGIN = 0x400C0000, LENGTH = 64K
-  APB3 (rw)  : ORIGIN = 0x400E0000, LENGTH = 64K
-  GPIO (rw)  : ORIGIN = 0x400F4000, LENGTH = 16K
-  SPI (rw)   : ORIGIN = 0x40100000, LENGTH = 4K
-  SGPIO (rw) : ORIGIN = 0x40101000, LENGTH = 4K
-  PPB (rw)   : ORIGIN = 0xE0000000, LENGTH = 1M
+  AHB (rw)    : ORIGIN = 0x40000000, LENGTH = 72K
+  RTC (rw)    : ORIGIN = 0x40040000, LENGTH = 64K
+  CLK (rw)    : ORIGIN = 0x40050000, LENGTH = 64K
+  APB0 (rw)   : ORIGIN = 0x40080000, LENGTH = 64K
+  APB1 (rw)   : ORIGIN = 0x400A0000, LENGTH = 64K
+  APB2 (rw)   : ORIGIN = 0x400C0000, LENGTH = 64K
+  APB3 (rw)   : ORIGIN = 0x400E0000, LENGTH = 64K
+  GPIO (rw)   : ORIGIN = 0x400F4000, LENGTH = 16K
+  SPI (rw)    : ORIGIN = 0x40100000, LENGTH = 4K
+  SGPIO (rw)  : ORIGIN = 0x40101000, LENGTH = 4K
+  PPB (rw)    : ORIGIN = 0xE0000000, LENGTH = 1M
 }
 
 SECTIONS
@@ -35,7 +35,6 @@ SECTIONS
   .shared (NOLOAD) : ALIGN(4)
   {
     *(.shared)
-    *(.shared*)
   } >SRAM4
 
   .text : ALIGN(4)
@@ -44,9 +43,9 @@ SECTIONS
 
     *(.vectors)
     *(.text)
-    *(.text*)
+    *(.text.*)
     *(.rodata)
-    *(.rodata*)
+    *(.rodata.*)
 
     _etext = .;
   } >ROM =0xFF
@@ -56,7 +55,7 @@ SECTIONS
     _sdata = .;
 
     *(.data)
-    *(.data*)
+    *(.data.*)
 
     _edata = .;
   } >RAM AT >ROM
@@ -68,7 +67,7 @@ SECTIONS
     _sbss = .;
 
     *(.bss)
-    *(.bss*)
+    *(.bss.*)
     *(COMMON)
 
     _ebss = .;
@@ -134,9 +133,6 @@ SECTIONS
 
   /DISCARD/ :
   {
-    *(.init)
-    *(.fini)
-
     *(.ARM.exidx*)
     *(.gnu.linkonce.armexidx.*)
 

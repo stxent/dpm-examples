@@ -29,7 +29,7 @@
     } \
     while (false)
 
-#define MAKE_SENSOR_TIMER(...) timerFactoryCreate(stateTimerFactory)
+#define MAKE_SENSOR_TIMER(...) timerFactoryCreate(timerFactory)
 
 enum [[gnu::packed]] SensorType
 {
@@ -310,16 +310,13 @@ int main(void)
   struct Timer * const eventTimer = boardSetupTimerAux0();
   timerSetOverflow(eventTimer, timerGetFrequency(eventTimer) / 2);
 
-  struct Timer * const stateTimer = boardSetupTimerAux1();
-  timerSetOverflow(stateTimer, timerGetFrequency(stateTimer) / 1000);
-
   const struct TimerFactoryConfig timerFactoryConfig = {
-      .timer = stateTimer
+      .timer = boardSetupTimerAux1()
   };
-  struct TimerFactory * const stateTimerFactory =
+  struct TimerFactory * const timerFactory =
       init(TimerFactory, &timerFactoryConfig);
-  assert(stateTimerFactory != NULL);
-  (void)stateTimerFactory; /* Suppress warnings for tests without timers */
+  assert(timerFactory != NULL);
+  timerSetOverflow(timerFactory, timerGetFrequency(timerFactory) / 1000);
 
   struct SensorHandler sh;
   shInit(&sh, SENSOR_COUNT);
@@ -361,7 +358,7 @@ int main(void)
   timerSetCallback(eventTimer, onSampleRequest, &context);
 
   /* Start sensor timers */
-  timerEnable(stateTimer);
+  timerEnable(timerFactory);
   /* Start Work Queue */
   wqStart(WQ_DEFAULT);
 

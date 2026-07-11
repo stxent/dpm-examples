@@ -191,13 +191,14 @@ void boardSetupTimerPackage(struct TimerPackage *package)
 {
   package->timer = boardSetupTimer();
   assert(package->timer != NULL);
-  timerSetOverflow(package->timer, timerGetFrequency(package->timer) / 1000);
 
   const struct TimerFactoryConfig timerFactoryConfig = {
       .timer = package->timer
   };
   package->factory = init(TimerFactory, &timerFactoryConfig);
   assert(package->factory != NULL);
+  timerSetOverflow(package->factory,
+      timerGetFrequency(package->factory) / 1000);
 }
 /*----------------------------------------------------------------------------*/
 void boardSetupMemoryFlash(struct MemoryPackage *package)

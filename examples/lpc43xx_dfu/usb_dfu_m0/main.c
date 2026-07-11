@@ -62,7 +62,7 @@ static void boardInit(struct Board *board)
       board->memoryPackage.regions, board->memoryPackage.offset,
       onResetRequested);
 
-  timerEnable(board->timerPackage.timer);
+  timerEnable(board->timerPackage.factory);
   interruptSetCallback(board->buttonPackage.button, onButtonPressed, board);
   interruptEnable(board->buttonPackage.button);
 }

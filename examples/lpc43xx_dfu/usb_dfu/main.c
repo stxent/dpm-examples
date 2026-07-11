@@ -64,7 +64,7 @@ static void boardInit(struct Board *board)
       board->memoryPackage.regions, board->memoryPackage.offset,
       onResetRequested);
 
-  timerEnable(board->timerPackage.timer);
+  timerEnable(board->timerPackage.factory);
   interruptSetCallback(board->buttonPackage.button, onButtonPressed, board);
   interruptEnable(board->buttonPackage.button);
 }
@@ -74,7 +74,7 @@ static void boardDeinit(struct Board *board)
   usbDevSetConnected(board->dfuPackage.usb, false);
 
   interruptDisable(board->buttonPackage.button);
-  timerDisable(board->timerPackage.timer);
+  timerDisable(board->timerPackage.factory);
   deinit(board->dfuPackage.bridge);
   deinit(board->dfuPackage.dfu);
   deinit(board->dfuPackage.usb);

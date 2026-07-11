@@ -27,9 +27,9 @@ SECTIONS
 
     *(.vectors)
     *(.text)
-    *(.text*)
+    *(.text.*)
     *(.rodata)
-    *(.rodata*)
+    *(.rodata.*)
 
     _etext = .;
   } >FLASH =0xFF
@@ -39,7 +39,7 @@ SECTIONS
     _sdata = .;
 
     *(.data)
-    *(.data*)
+    *(.data.*)
 
     _edata = .;
   } >SRAM0 AT >FLASH
@@ -51,7 +51,7 @@ SECTIONS
     _sbss = .;
 
     *(.bss)
-    *(.bss*)
+    *(.bss.*)
     *(COMMON)
 
     _ebss = .;
@@ -63,7 +63,6 @@ SECTIONS
   .sram1 : ALIGN(4)
   {
     *(.sram1)
-    *(.sram1*)
   } >SRAM1
 
   .sram2 :
@@ -93,9 +92,6 @@ SECTIONS
 
   /DISCARD/ :
   {
-    *(.init)
-    *(.fini)
-
     *(.ARM.exidx*)
     *(.gnu.linkonce.armexidx.*)
 
