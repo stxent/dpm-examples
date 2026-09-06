@@ -5,7 +5,6 @@
  */
 
 #include "board.h"
-#include <halm/generic/flash.h>
 #include <halm/generic/work_queue.h>
 #include <halm/platform/numicro/clocking.h>
 #include <halm/platform/numicro/flash.h>

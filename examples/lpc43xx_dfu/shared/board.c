@@ -7,7 +7,6 @@
 #include "board.h"
 #include <halm/core/cortex/systick.h>
 #include <halm/delay.h>
-#include <halm/generic/flash.h>
 #include <halm/generic/ram_proxy.h>
 #include <halm/generic/timer_factory.h>
 #include <halm/generic/work_queue.h>
@@ -79,16 +78,6 @@ void boardResetClockPartial(void)
   }
 }
 /*----------------------------------------------------------------------------*/
-void boardSetupClockExt(void)
-{
-  clockEnable(MainClock, &(struct GenericClockConfig){CLOCK_INTERNAL});
-
-  clockEnable(ExternalOsc, &extOscConfig);
-  while (!clockReady(ExternalOsc));
-
-  clockEnable(MainClock, &(struct GenericClockConfig){CLOCK_EXTERNAL});
-}
-/*----------------------------------------------------------------------------*/
 void boardSetupClockPll(unsigned int divisor)
 {
   static const struct GenericDividerConfig divConfig = {
@@ -136,8 +125,8 @@ void boardSetupButtonPackage(struct ButtonPackage *package,
 {
   static const struct PinIntConfig buttonEventConfig = {
       .pin = BOARD_BUTTON,
-      .event = INPUT_FALLING,
-      .pull = PIN_PULLUP
+      .event = BOARD_BUTTON_INV ? INPUT_FALLING : INPUT_RISING,
+      .pull = BOARD_BUTTON_INV ? PIN_PULLUP : PIN_PULLDOWN
   };
 
   package->event = init(PinInt, &buttonEventConfig);
@@ -151,7 +140,7 @@ void boardSetupButtonPackage(struct ButtonPackage *package,
       .timer = package->timer,
       .pin = BOARD_BUTTON,
       .delay = 2,
-      .level = false
+      .level = BOARD_BUTTON_INV ? false : true
   };
   package->button = init(Button, &buttonConfig);
   assert(package->button != NULL);

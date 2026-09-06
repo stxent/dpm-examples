@@ -8,7 +8,6 @@
 #define M48X_DFU_SHARED_BOARD_H_
 /*----------------------------------------------------------------------------*/
 #include <halm/generic/flash.h>
-#include <halm/pin.h>
 /*----------------------------------------------------------------------------*/
 #define BOARD_BUTTON_0    PIN(PORT_G, 15)
 #define BOARD_BUTTON_1    PIN(PORT_F, 11)
@@ -18,9 +17,6 @@
 #define BOARD_LED_2       PIN(PORT_H, 2)
 #define BOARD_LED         BOARD_LED_0
 #define BOARD_LED_INV     true
-
-#define BOARD_USB_IND0    BOARD_LED_1
-#define BOARD_USB_IND1    BOARD_LED_2
 /*----------------------------------------------------------------------------*/
 struct Dfu;
 struct DfuBridge;

@@ -29,64 +29,88 @@
 [[gnu::alias("boardSetupTimer6")]] struct Timer *boardSetupTimerAux0(void);
 [[gnu::alias("boardSetupTimer7")]] struct Timer *boardSetupTimerAux1(void);
 /*----------------------------------------------------------------------------*/
+enum
+{
+  PLL_CONFIG_8MHZ,
+  PLL_CONFIG_12MHZ,
+  PLL_CONFIG_16MHZ,
+  PLL_CONFIG_25MHZ
+};
+
 static const struct ExternalOscConfig extOscConfig = {
-  .frequency = 25000000
+    .frequency = 8000000
 };
 
 static const struct MainClockConfig mainClockConfig = {
     .divisor = 1,
     .range = VR_2V7_3V6
 };
+
+static const struct PllConfig pllConfigArray[] = {
+    [PLL_CONFIG_8MHZ] = {
+        .divisor = 2,
+        .multiplier = 25,
+        .source = CLOCK_EXTERNAL
+    },
+    [PLL_CONFIG_12MHZ] = {
+        .divisor = 2,
+        .multiplier = 16,
+        .source = CLOCK_EXTERNAL
+    },
+    [PLL_CONFIG_16MHZ] = {
+        .divisor = 2,
+        .multiplier = 12,
+        .source = CLOCK_EXTERNAL
+    },
+    [PLL_CONFIG_25MHZ] = {
+        .divisor = 2,
+        .multiplier = 8,
+        .source = CLOCK_EXTERNAL
+    }
+};
 /*----------------------------------------------------------------------------*/
 DECLARE_WQ_IRQ(WQ_LP, FLASH_ISR)
 /*----------------------------------------------------------------------------*/
 void boardSetupClockExt(void)
 {
-  static const struct BusClockConfig apbClockConfigBypass = {
-      .divisor = 1
-  };
-  static const struct SystemClockConfig systemClockConfigExt = {
-      .source = CLOCK_EXTERNAL
-  };
-
   clockEnable(ExternalOsc, &extOscConfig);
   while (!clockReady(ExternalOsc));
 
-  clockEnable(Apb1Clock, &apbClockConfigBypass);
-  clockEnable(Apb2Clock, &apbClockConfigBypass);
-  clockEnable(SystemClock, &systemClockConfigExt);
+  clockEnable(Apb1Clock, &(struct BusClockConfig){1});
+  clockEnable(Apb2Clock, &(struct BusClockConfig){1});
+  clockEnable(SystemClock, &(struct SystemClockConfig){CLOCK_EXTERNAL});
 
   clockEnable(MainClock, &mainClockConfig);
 }
 /*----------------------------------------------------------------------------*/
 void boardSetupClockPll(void)
 {
-  static const struct BusClockConfig apbClockConfigFast = {
-      .divisor = 2
-  };
-  static const struct BusClockConfig apbClockConfigSlow = {
-      .divisor = 4
-  };
-  static const struct MainPllConfig mainPllConfig = {
-      .divisor = 4,
-      .multiplier = 16,
-      .source = CLOCK_EXTERNAL
-  };
-  static const struct SystemClockConfig systemClockConfigPll = {
-      .source = CLOCK_PLL
-  };
+  const struct PllConfig *mainPllConfig = NULL;
 
-  clockEnable(ExternalOsc, &extOscConfig);
-  while (!clockReady(ExternalOsc));
+  if (extOscConfig.frequency == 8000000)
+    mainPllConfig = &pllConfigArray[PLL_CONFIG_8MHZ];
+  else if (extOscConfig.frequency == 12000000)
+    mainPllConfig = &pllConfigArray[PLL_CONFIG_12MHZ];
+  else if (extOscConfig.frequency == 16000000)
+    mainPllConfig = &pllConfigArray[PLL_CONFIG_16MHZ];
+  else if (extOscConfig.frequency == 24000000)
+    mainPllConfig = &pllConfigArray[PLL_CONFIG_25MHZ];
+  assert(mainPllConfig != NULL);
 
-  clockEnable(MainPll, &mainPllConfig);
-  while (!clockReady(MainPll));
+  if (mainPllConfig != NULL)
+  {
+    clockEnable(ExternalOsc, &extOscConfig);
+    while (!clockReady(ExternalOsc));
 
-  clockEnable(Apb1Clock, &apbClockConfigSlow);
-  clockEnable(Apb2Clock, &apbClockConfigFast);
-  clockEnable(SystemClock, &systemClockConfigPll);
+    clockEnable(MainPll, mainPllConfig);
+    while (!clockReady(MainPll));
 
-  clockEnable(MainClock, &mainClockConfig);
+    clockEnable(Apb1Clock, &(struct BusClockConfig){4});
+    clockEnable(Apb2Clock, &(struct BusClockConfig){2});
+    clockEnable(SystemClock, &(struct SystemClockConfig){CLOCK_PLL});
+
+    clockEnable(MainClock, &mainClockConfig);
+  }
 }
 /*----------------------------------------------------------------------------*/
 void boardSetupDefaultWQ(void)

@@ -14,9 +14,6 @@
 /*----------------------------------------------------------------------------*/
 struct Board
 {
-  struct Pin ind0;
-  struct Pin ind1;
-
   struct MemoryPackage memoryPackage;
   struct ButtonPackage buttonPackage;
   struct DfuPackage dfuPackage;
@@ -36,11 +33,6 @@ struct Board instance;
 /*----------------------------------------------------------------------------*/
 static void boardInit(struct Board *board)
 {
-  board->ind0 = pinInit(BOARD_USB_IND0);
-  pinOutput(board->ind0, !BOARD_LED_INV);
-  board->ind1 = pinInit(BOARD_USB_IND1);
-  pinOutput(board->ind1, BOARD_LED_INV);
-
   boardSetupClockPll();
   boardSetupMemoryFlash(&board->memoryPackage);
   board->memoryPackage.offset = (uintptr_t)&_erom - (uintptr_t)&_srom;
@@ -68,7 +60,6 @@ static void boardDeinit(struct Board *board)
   /* Flash driver should be left in initialized state */
 
   boardResetClock();
-  pinWrite(board->ind0, BOARD_LED_INV);
 }
 /*----------------------------------------------------------------------------*/
 static void onButtonPressed(void *argument)
