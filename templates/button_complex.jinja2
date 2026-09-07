@@ -50,7 +50,7 @@ int main(void)
       .level = !BOARD_BUTTON_INV
   };
   struct ButtonComplex * const button = init(ButtonComplex, &config);
-  assert(button != NULL);
+  assert(button != nullptr);
   buttonComplexSetLongPressCallback(button, onButtonHold, &holdLed);
   buttonComplexSetPressCallback(button, onButtonPressed, &pressLed);
   buttonComplexSetReleaseCallback(button, onButtonReleased, &pressLed);

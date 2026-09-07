@@ -109,7 +109,7 @@ static void handlePageChange(struct Context *context)
 static struct Interface *makeDisplay(struct Interface *bus,
     enum DisplayType type)
 {
-  struct Interface *interface = NULL;
+  struct Interface *interface = nullptr;
 
   switch (type)
   {
@@ -130,7 +130,7 @@ static struct Interface *makeDisplay(struct Interface *bus,
       break;
   }
 
-  assert(interface != NULL);
+  assert(interface != nullptr);
   return interface;
 }
 /*----------------------------------------------------------------------------*/

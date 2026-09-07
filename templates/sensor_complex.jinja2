@@ -44,7 +44,7 @@ enum
       .gyroScale = MPU60XX_GYRO_2000
   };
   struct MPU60XX * const mpu = init(MPU60XX, &mpuConfig);
-  assert(mpu != NULL);
+  assert(mpu != nullptr);
 
   ATTACH_SENSOR(SENSOR_TAG_ACCEL, SENSOR_TYPE_ACCEL,
       mpu60xxMakeAccelerometer(mpu));
@@ -63,7 +63,7 @@ enum
       .subtype = MS56XX_TYPE_5607
   };
   struct MS56XX * const baro = init(MS56XX, &baroConfig);
-  assert(baro != NULL);
+  assert(baro != nullptr);
 
   ATTACH_SENSOR(SENSOR_TAG_BARO, SENSOR_TYPE_BARO, baro);
   ATTACH_SENSOR(SENSOR_TAG_BARO_THERMO, SENSOR_TYPE_THERMO,
@@ -80,7 +80,7 @@ enum
       .oversampling = HMC5883_OVERSAMPLING_DEFAULT
   };
   struct HMC5883 * const mag = init(HMC5883, &magConfig);
-  assert(mag != NULL);
+  assert(mag != nullptr);
 
   ATTACH_SENSOR(SENSOR_TAG_MAG, SENSOR_TYPE_MAG, mag);
 {% endblock %}

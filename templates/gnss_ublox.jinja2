@@ -196,7 +196,7 @@ int main(void)
       .timer = chronoTimer
   };
   struct Timer64 * const chrono = init(LifetimeTimer64, &chronoConfig);
-  assert(chrono != NULL);
+  assert(chrono != nullptr);
   timerEnable(chrono);
 
   struct Interrupt * const pps = boardSetupSensorEvent(INPUT_RISING,
@@ -218,7 +218,7 @@ int main(void)
       .elevation = 10
   };
   struct Ublox * const receiver = init(Ublox, &config);
-  assert(receiver != NULL);
+  assert(receiver != nullptr);
 
   struct Context context = {
       .chrono = chrono,

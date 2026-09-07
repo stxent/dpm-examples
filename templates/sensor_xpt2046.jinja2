@@ -33,7 +33,7 @@ enum
       .y = 320
   };
   struct XPT2046 * const touch = init(XPT2046, &touchConfig);
-  assert(touch != NULL);
+  assert(touch != nullptr);
   xpt2046ResetCalibration(touch);
 
   ATTACH_SENSOR(SENSOR_TAG_TOUCH, SENSOR_TYPE_CUSTOM, touch);

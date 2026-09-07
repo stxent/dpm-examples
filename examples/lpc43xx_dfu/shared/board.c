@@ -117,7 +117,7 @@ void boardSetupDefaultWQ(void)
   };
 
   WQ_DEFAULT = init(WorkQueue, &wqConfig);
-  assert(WQ_DEFAULT != NULL);
+  assert(WQ_DEFAULT != nullptr);
 }
 /*----------------------------------------------------------------------------*/
 void boardSetupButtonPackage(struct ButtonPackage *package,
@@ -130,7 +130,7 @@ void boardSetupButtonPackage(struct ButtonPackage *package,
   };
 
   package->event = init(PinInt, &buttonEventConfig);
-  assert(package->event != NULL);
+  assert(package->event != nullptr);
 
   package->timer = timerFactoryCreate(factory);
   timerSetOverflow(package->timer, timerGetFrequency(package->timer) / 100);
@@ -143,7 +143,7 @@ void boardSetupButtonPackage(struct ButtonPackage *package,
       .level = BOARD_BUTTON_INV ? false : true
   };
   package->button = init(Button, &buttonConfig);
-  assert(package->button != NULL);
+  assert(package->button != nullptr);
 }
 /*----------------------------------------------------------------------------*/
 void boardSetupDfuPackage(struct DfuPackage *package,
@@ -160,7 +160,7 @@ void boardSetupDfuPackage(struct DfuPackage *package,
       .transferSize = TRANSFER_SIZE
   };
   package->dfu = init(Dfu, &dfuConfig);
-  assert(package->dfu != NULL);
+  assert(package->dfu != nullptr);
 
   const struct DfuBridgeConfig bridgeConfig = {
       .device = package->dfu,
@@ -173,29 +173,29 @@ void boardSetupDfuPackage(struct DfuPackage *package,
       .writeonly = false
   };
   package->bridge = init(DfuBridge, &bridgeConfig);
-  assert(package->bridge != NULL);
+  assert(package->bridge != nullptr);
 }
 /*----------------------------------------------------------------------------*/
 void boardSetupTimerPackage(struct TimerPackage *package)
 {
   package->timer = boardSetupTimer();
-  assert(package->timer != NULL);
+  assert(package->timer != nullptr);
 
   const struct TimerFactoryConfig timerFactoryConfig = {
       .timer = package->timer
   };
   package->factory = init(TimerFactory, &timerFactoryConfig);
-  assert(package->factory != NULL);
+  assert(package->factory != nullptr);
   timerSetOverflow(package->factory,
       timerGetFrequency(package->factory) / 1000);
 }
 /*----------------------------------------------------------------------------*/
 void boardSetupMemoryFlash(struct MemoryPackage *package)
 {
-  package->lower = NULL;
+  package->lower = nullptr;
 
   package->upper = init(Flash, &(struct FlashConfig){FLASH_BANK_A});
-  assert(package->upper != NULL);
+  assert(package->upper != nullptr);
 
   package->offset = 0;
   package->regions = flashGetGeometry(package->upper, package->geometry,
@@ -205,10 +205,10 @@ void boardSetupMemoryFlash(struct MemoryPackage *package)
 /*----------------------------------------------------------------------------*/
 void boardSetupMemoryFlashB(struct MemoryPackage *package)
 {
-  package->lower = NULL;
+  package->lower = nullptr;
 
   package->upper = init(Flash, &(struct FlashConfig){FLASH_BANK_B});
-  assert(package->upper != NULL);
+  assert(package->upper != nullptr);
 
   package->offset = 0;
   package->regions = flashGetGeometry(package->upper, package->geometry,
@@ -228,7 +228,7 @@ void boardSetupMemoryNOR(struct MemoryPackage *package)
       .xip = true
   };
   package->upper = init(W25QQuad, &w25Config);
-  assert(package->upper != NULL);
+  assert(package->upper != nullptr);
 
   uint32_t capacity = 0;
   uint32_t sector = 0;
@@ -304,7 +304,7 @@ void boardSetupMemorySDRAM(struct MemoryPackage *package)
 #endif
 
   package->lower = init(EmcSdram, &emcSdramConfig);
-  assert(package->lower != NULL);
+  assert(package->lower != nullptr);
 
   const struct RamProxyConfig ramConfig = {
       .arena = emcSdramAddress((const struct EmcSdram *)package->lower),
@@ -312,7 +312,7 @@ void boardSetupMemorySDRAM(struct MemoryPackage *package)
       .granule = 0
   };
   package->upper = init(RamProxy, &ramConfig);
-  assert(package->upper != NULL);
+  assert(package->upper != nullptr);
 
   uint32_t capacity = 0;
   uint32_t sector = 0;
@@ -332,7 +332,7 @@ void boardSetupMemorySDRAM(struct MemoryPackage *package)
 void boardSetupMemorySRAM(struct MemoryPackage *package, void *arena,
     size_t size)
 {
-  package->lower = NULL;
+  package->lower = nullptr;
 
   const struct RamProxyConfig ramConfig = {
       .arena = arena,
@@ -340,7 +340,7 @@ void boardSetupMemorySRAM(struct MemoryPackage *package, void *arena,
       .granule = 0
   };
   package->upper = init(RamProxy, &ramConfig);
-  assert(package->upper != NULL);
+  assert(package->upper != nullptr);
 
   uint32_t capacity = 0;
   uint32_t sector = 0;
@@ -377,14 +377,14 @@ struct Interface *boardSetupSpim(void)
   while (!clockReady(SpifiClock));
 
   struct Interface * const interface = init(Spifi, &spifiConfig);
-  assert(interface != NULL);
+  assert(interface != nullptr);
   return interface;
 }
 /*----------------------------------------------------------------------------*/
 struct Timer *boardSetupTimer(void)
 {
-  struct Timer * const timer = init(SysTick, NULL);
-  assert(timer != NULL);
+  struct Timer * const timer = init(SysTick, nullptr);
+  assert(timer != nullptr);
   return timer;
 }
 /*----------------------------------------------------------------------------*/
@@ -415,7 +415,7 @@ struct Usb *boardSetupUsb0(void)
   while (!clockReady(Usb0Clock));
 
   struct Usb * const usb = init(UsbDevice, &usb0Config);
-  assert(usb != NULL);
+  assert(usb != nullptr);
   return usb;
 }
 /*----------------------------------------------------------------------------*/
@@ -458,6 +458,6 @@ struct Usb *boardSetupUsb1(void)
   while (!clockReady(Usb1Clock));
 
   struct Usb * const usb = init(UsbDevice, &usb1Config);
-  assert(usb != NULL);
+  assert(usb != nullptr);
   return usb;
 }

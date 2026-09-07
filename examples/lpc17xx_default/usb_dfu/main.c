@@ -70,8 +70,8 @@ int main(void)
   boardSetupClockPll();
   boardSetupDefaultWQ();
 
-  struct Interface * const flash = init(Flash, NULL);
-  assert(flash != NULL);
+  struct Interface * const flash = init(Flash, nullptr);
+  assert(flash != nullptr);
 
   struct FlashGeometry layout[2];
   const size_t regions = flashGetGeometry(flash, layout, ARRAY_SIZE(layout));
@@ -86,7 +86,7 @@ int main(void)
       .transferSize = TRANSFER_SIZE
   };
   struct Dfu * const dfu = init(Dfu, &dfuConfig);
-  assert(dfu != NULL);
+  assert(dfu != nullptr);
 
   const struct DfuBridgeConfig bridgeConfig = {
       .device = dfu,
@@ -99,7 +99,7 @@ int main(void)
       .writeonly = false
   };
   struct DfuBridge * const bridge = init(DfuBridge, &bridgeConfig);
-  assert(bridge != NULL);
+  assert(bridge != nullptr);
   (void)bridge;
 
   /* Start USB enumeration and event loop */

@@ -38,7 +38,7 @@ int main(void)
   boardSetupClockPll();
 
   struct Interface * const ws281x = boardSetupWS281x(LED_COUNT);
-  ifSetParam(ws281x, IF_ZEROCOPY, NULL);
+  ifSetParam(ws281x, IF_ZEROCOPY, nullptr);
 
   struct Timer * const timer = boardSetupTimer();
   timerSetOverflow(timer, timerGetFrequency(timer));

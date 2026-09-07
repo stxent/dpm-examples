@@ -140,7 +140,7 @@ static bool memoryTestSequenceZerocopy(struct Interface *memory)
   enum Result res;
   bool event = false;
 
-  ifSetParam(memory, IF_ZEROCOPY, NULL);
+  ifSetParam(memory, IF_ZEROCOPY, nullptr);
   ifSetCallback(memory, onMemoryEvent, &event);
 
   /* Read geometry */
@@ -180,7 +180,7 @@ static bool memoryTestSequenceZerocopy(struct Interface *memory)
         barrier();
 
       event = false;
-      res = ifGetParam(memory, IF_STATUS, NULL);
+      res = ifGetParam(memory, IF_STATUS, nullptr);
     }
   }
 
@@ -199,7 +199,7 @@ static bool memoryTestSequenceZerocopy(struct Interface *memory)
         barrier();
 
       event = false;
-      res = ifGetParam(memory, IF_STATUS, NULL);
+      res = ifGetParam(memory, IF_STATUS, nullptr);
 
       if (res == E_OK)
       {
@@ -233,7 +233,7 @@ static bool memoryTestSequenceZerocopy(struct Interface *memory)
         barrier();
 
       event = false;
-      res = ifGetParam(memory, IF_STATUS, NULL);
+      res = ifGetParam(memory, IF_STATUS, nullptr);
     }
     else
       res = E_INTERFACE;
@@ -254,7 +254,7 @@ static bool memoryTestSequenceZerocopy(struct Interface *memory)
         barrier();
 
       event = false;
-      res = ifGetParam(memory, IF_STATUS, NULL);
+      res = ifGetParam(memory, IF_STATUS, nullptr);
 
       if (res == E_OK)
       {
@@ -272,8 +272,8 @@ static bool memoryTestSequenceZerocopy(struct Interface *memory)
       res = E_INTERFACE;
   }
 
-  ifSetCallback(memory, NULL, NULL);
-  ifSetParam(memory, IF_BLOCKING, NULL);
+  ifSetCallback(memory, nullptr, nullptr);
+  ifSetParam(memory, IF_BLOCKING, nullptr);
   return res == E_OK;
 }
 /*----------------------------------------------------------------------------*/
@@ -305,7 +305,7 @@ int main(void)
 
   const struct MX35SerialConfig memoryConfig = {
       .spi = spi,
-      .timer = stateTimerEnabled ? stateTimer : NULL,
+      .timer = stateTimerEnabled ? stateTimer : nullptr,
       .poll = 1000,
       .rate = 0,
       .cs = BOARD_MEM_CS,
@@ -313,7 +313,7 @@ int main(void)
       .spare = false
   };
   struct Interface * const memory = init(MX35Serial, &memoryConfig);
-  assert(memory != NULL);
+  assert(memory != nullptr);
 
   timerSetOverflow(eventTimer, timerGetFrequency(eventTimer) * 5);
   timerSetCallback(eventTimer, onTimerOverflow, &event);

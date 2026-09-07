@@ -30,7 +30,7 @@ enum
       .resolution = SHT2X_RESOLUTION_DEFAULT
   };
   struct SHT2X * const hygro = init(SHT2X, &hygroConfig);
-  assert(hygro != NULL);
+  assert(hygro != nullptr);
 
   ATTACH_SENSOR(SENSOR_TAG_HYGRO, SENSOR_TYPE_HYGRO, hygro);
   ATTACH_SENSOR(SENSOR_TAG_THERMO, SENSOR_TYPE_THERMO,

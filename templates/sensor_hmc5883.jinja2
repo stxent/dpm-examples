@@ -36,7 +36,7 @@ enum
       .oversampling = HMC5883_OVERSAMPLING_DEFAULT
   };
   struct HMC5883 * const mag = init(HMC5883, &magConfig);
-  assert(mag != NULL);
+  assert(mag != nullptr);
 
   ATTACH_SENSOR(SENSOR_TAG_MAG, SENSOR_TYPE_MAG, mag);
 {% endblock %}

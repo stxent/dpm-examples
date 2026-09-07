@@ -35,7 +35,7 @@ int main(void)
       .level = !BOARD_BUTTON_INV
   };
   struct Interrupt * const button = init(Button, &config);
-  assert(button != NULL);
+  assert(button != nullptr);
   interruptSetCallback(button, onButtonPressed, &led);
   interruptEnable(button);
 

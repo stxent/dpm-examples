@@ -221,7 +221,7 @@ void boardSetupDefaultWQ(void)
   };
 
   WQ_DEFAULT = init(WorkQueue, &wqConfig);
-  assert(WQ_DEFAULT != NULL);
+  assert(WQ_DEFAULT != nullptr);
 }
 /*----------------------------------------------------------------------------*/
 void boardSetupLowPriorityWQ(void)
@@ -233,7 +233,7 @@ void boardSetupLowPriorityWQ(void)
   };
 
   WQ_LP = init(WorkQueueIrq, &wqIrqConfig);
-  assert(WQ_LP != NULL);
+  assert(WQ_LP != nullptr);
 }
 /*----------------------------------------------------------------------------*/
 struct Interrupt *boardSetupButton(enum InputEvent event)
@@ -245,7 +245,7 @@ struct Interrupt *boardSetupButton(enum InputEvent event)
   };
 
   struct Interrupt * const interrupt = init(PinInt, &buttonIntConfig);
-  assert(interrupt != NULL);
+  assert(interrupt != nullptr);
   return interrupt;
 }
 /*----------------------------------------------------------------------------*/
@@ -283,7 +283,7 @@ struct Interface *boardSetupDisplayBus(void)
 
   /* Timer 0 will be used as a DMA event source */
   struct Interface * const interface = init(SgpioBus, &sgpioBusConfig);
-  assert(interface != NULL);
+  assert(interface != nullptr);
   return interface;
 }
 /*----------------------------------------------------------------------------*/
@@ -300,7 +300,7 @@ struct Interface *boardSetupI2C0(void)
   enablePeriphClock(Apb1Clock);
 
   struct Interface * const interface = init(I2C, &i2c0Config);
-  assert(interface != NULL);
+  assert(interface != nullptr);
   return interface;
 }
 /*----------------------------------------------------------------------------*/
@@ -317,7 +317,7 @@ struct Interface *boardSetupI2C1(void)
   enablePeriphClock(Apb3Clock);
 
   struct Interface * const interface = init(I2C, &i2c1Config);
-  assert(interface != NULL);
+  assert(interface != nullptr);
   return interface;
 }
 /*----------------------------------------------------------------------------*/
@@ -347,12 +347,12 @@ struct StreamPackage boardSetupI2S(void)
   enablePeriphClock(Apb1Clock);
 
   struct I2SDma * const interface = init(I2SDma, &i2sConfig);
-  assert(interface != NULL);
+  assert(interface != nullptr);
 
   struct Stream * const rxStream = i2sDmaGetInput(interface);
-  assert(rxStream != NULL);
+  assert(rxStream != nullptr);
   struct Stream * const txStream = i2sDmaGetOutput(interface);
-  assert(txStream != NULL);
+  assert(txStream != nullptr);
 
   return (struct StreamPackage){
       (struct Interface *)interface,
@@ -372,7 +372,7 @@ struct Interrupt *boardSetupSensorEvent0(enum InputEvent edge,
   };
 
   struct Interrupt * const interrupt = init(PinInt, &eventIntConfig);
-  assert(interrupt != NULL);
+  assert(interrupt != nullptr);
   return interrupt;
 }
 /*----------------------------------------------------------------------------*/
@@ -387,7 +387,7 @@ struct Interrupt *boardSetupSensorEvent1(enum InputEvent edge,
   };
 
   struct Interrupt * const interrupt = init(PinInt, &eventIntConfig);
-  assert(interrupt != NULL);
+  assert(interrupt != nullptr);
   return interrupt;
 }
 /*----------------------------------------------------------------------------*/
@@ -405,7 +405,7 @@ struct Interface *boardSetupSerial1(void)
   enablePeriphClock(Uart1Clock);
 
   struct Interface * const interface = init(Serial, &serialConfig);
-  assert(interface != NULL);
+  assert(interface != nullptr);
   return interface;
 }
 /*----------------------------------------------------------------------------*/
@@ -423,7 +423,7 @@ struct Interface *boardSetupSerial2(void)
   enablePeriphClock(Usart2Clock);
 
   struct Interface * const interface = init(Serial, &serialConfig);
-  assert(interface != NULL);
+  assert(interface != nullptr);
   return interface;
 }
 /*----------------------------------------------------------------------------*/
@@ -442,7 +442,7 @@ struct Interface *boardSetupSpi0(void)
   enablePeriphClock(Ssp0Clock);
 
   struct Interface * const interface = init(SpiDma, &spiDma0Config);
-  assert(interface != NULL);
+  assert(interface != nullptr);
   return interface;
 }
 /*----------------------------------------------------------------------------*/
@@ -461,7 +461,7 @@ struct Interface *boardSetupSpi1(void)
   enablePeriphClock(Ssp1Clock);
 
   struct Interface * const interface = init(SpiDma, &spiDma1Config);
-  assert(interface != NULL);
+  assert(interface != nullptr);
   return interface;
 }
 /*----------------------------------------------------------------------------*/
@@ -516,7 +516,7 @@ struct Interface *boardSetupSpim(struct Timer *)
   }
 
   struct Interface * const interface = init(Spifi, &spifiConfig);
-  assert(interface != NULL);
+  assert(interface != nullptr);
   return interface;
 }
 /*----------------------------------------------------------------------------*/
@@ -529,7 +529,7 @@ struct Timer *boardSetupTimer0(void)
   };
 
   struct Timer * const timer = init(GpTimer, &timerConfig);
-  assert(timer != NULL);
+  assert(timer != nullptr);
   return timer;
 }
 /*----------------------------------------------------------------------------*/
@@ -542,7 +542,7 @@ struct Timer *boardSetupTimer1(void)
   };
 
   struct Timer * const timer = init(GpTimer, &timerConfig);
-  assert(timer != NULL);
+  assert(timer != nullptr);
   return timer;
 }
 /*----------------------------------------------------------------------------*/
@@ -555,7 +555,7 @@ struct Timer *boardSetupTimer2(void)
   };
 
   struct Timer * const timer = init(GpTimer, &timerConfig);
-  assert(timer != NULL);
+  assert(timer != nullptr);
   return timer;
 }
 /*----------------------------------------------------------------------------*/
@@ -568,7 +568,7 @@ struct Timer *boardSetupTimer3(void)
   };
 
   struct Timer * const timer = init(GpTimer, &timerConfig);
-  assert(timer != NULL);
+  assert(timer != nullptr);
   return timer;
 }
 /*----------------------------------------------------------------------------*/
@@ -582,7 +582,7 @@ struct Interrupt *boardSetupTouchEvent(enum InputEvent edge, enum PinPull pull)
   };
 
   struct Interrupt * const interrupt = init(PinInt, &eventIntConfig);
-  assert(interrupt != NULL);
+  assert(interrupt != nullptr);
   return interrupt;
 }
 /*----------------------------------------------------------------------------*/
@@ -613,7 +613,7 @@ struct Usb *boardSetupUsb0(void)
   while (!clockReady(Usb0Clock));
 
   struct Usb * const usb = init(UsbDevice, &usb0Config);
-  assert(usb != NULL);
+  assert(usb != nullptr);
   return usb;
 }
 /*----------------------------------------------------------------------------*/
@@ -656,7 +656,7 @@ struct Usb *boardSetupUsb1(void)
   while (!clockReady(Usb1Clock));
 
   struct Usb * const usb = init(UsbDevice, &usb1Config);
-  assert(usb != NULL);
+  assert(usb != nullptr);
   return usb;
 }
 /*----------------------------------------------------------------------------*/
@@ -666,7 +666,7 @@ struct Interface *boardSetupUsbSerial(void)
 
   const struct CdcAcmConfig config = {
       .device = usb,
-      .arena = NULL,
+      .arena = nullptr,
       .rxBuffers = 4,
       .txBuffers = 16,
 
@@ -678,7 +678,7 @@ struct Interface *boardSetupUsbSerial(void)
   };
 
   struct Interface * const serial = init(CdcAcm, &config);
-  assert(serial != NULL);
+  assert(serial != nullptr);
 
   usbDevSetConnected(usb, true);
   return serial;

@@ -51,7 +51,7 @@ enum
   };
 {% endif %}
   struct MS56XX * const baro = init(MS56XX, &baroConfig);
-  assert(baro != NULL);
+  assert(baro != nullptr);
 
   ATTACH_SENSOR(SENSOR_TAG_BARO, SENSOR_TYPE_BARO, baro);
   ATTACH_SENSOR(SENSOR_TAG_THERMO, SENSOR_TYPE_THERMO,

@@ -216,7 +216,7 @@ int main(void)
       .sensitivity = TEA57XX_SEARCH_MEDIUM
   };
   struct TEA57XX * const radio = init(TEA57XX, &radioConfig);
-  assert(radio != NULL);
+  assert(radio != nullptr);
   tea57xxSetUpdateWorkQueue(radio, WQ_DEFAULT);
   tea57xxReset(radio);
 

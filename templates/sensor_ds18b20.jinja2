@@ -25,7 +25,7 @@ static void onSearchCompleted(void *argument)
   bool event = false;
 
   ifSetCallback(ow, onSearchCompleted, &event);
-  ifSetParam(ow, IF_ONE_WIRE_START_SEARCH, NULL);
+  ifSetParam(ow, IF_ONE_WIRE_START_SEARCH, nullptr);
 
   do
   {
@@ -33,7 +33,7 @@ static void onSearchCompleted(void *argument)
       barrier();
     event = false;
 
-    if (ifGetParam(ow, IF_STATUS, NULL) != E_OK)
+    if (ifGetParam(ow, IF_STATUS, nullptr) != E_OK)
       break;
 
     uint64_t address;
@@ -47,7 +47,7 @@ static void onSearchCompleted(void *argument)
           .resolution = DS18B20_RESOLUTION_DEFAULT
       };
       struct DS18B20 * const thermo = init(DS18B20, &thermoConfig);
-      assert(thermo != NULL);
+      assert(thermo != nullptr);
 
       ATTACH_SENSOR(tag, SENSOR_TYPE_THERMO, thermo);
 
@@ -69,5 +69,5 @@ static void onSearchCompleted(void *argument)
       ++tag;
     }
   }
-  while (ifSetParam(ow, IF_ONE_WIRE_FIND_NEXT, NULL) == E_OK);
+  while (ifSetParam(ow, IF_ONE_WIRE_FIND_NEXT, nullptr) == E_OK);
 {% endblock %}

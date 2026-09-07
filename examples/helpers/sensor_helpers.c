@@ -159,7 +159,7 @@ size_t printFormattedValues(const void *values, const DataFormat *format,
       1, 10, 100, 1000, 10000, 100000, 1000000
   };
 
-  assert(values != NULL && format != NULL && output != NULL);
+  assert(values != nullptr && format != nullptr && output != nullptr);
   assert(decimalFormatPrecision <= 6);
 
   const unsigned int mul = precisionMulTable[decimalFormatPrecision];

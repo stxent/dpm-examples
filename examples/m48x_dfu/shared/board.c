@@ -133,7 +133,7 @@ void boardSetupDefaultWQ(void)
   };
 
   WQ_DEFAULT = init(WorkQueue, &wqConfig);
-  assert(WQ_DEFAULT != NULL);
+  assert(WQ_DEFAULT != nullptr);
 }
 /*----------------------------------------------------------------------------*/
 void boardSetupButtonPackage(struct ButtonPackage *package)
@@ -145,7 +145,7 @@ void boardSetupButtonPackage(struct ButtonPackage *package)
   };
 
   package->event = init(PinInt, &buttonEventConfig);
-  assert(package->event != NULL);
+  assert(package->event != nullptr);
 
   package->timer = boardSetupTimerAux0();
   timerSetOverflow(package->timer, timerGetFrequency(package->timer) / 100);
@@ -158,7 +158,7 @@ void boardSetupButtonPackage(struct ButtonPackage *package)
       .level = false
   };
   package->button = init(Button, &buttonConfig);
-  assert(package->button != NULL);
+  assert(package->button != nullptr);
 }
 /*----------------------------------------------------------------------------*/
 void boardSetupDfuPackage(struct DfuPackage *package, struct Interface *flash,
@@ -174,7 +174,7 @@ void boardSetupDfuPackage(struct DfuPackage *package, struct Interface *flash,
       .transferSize = TRANSFER_SIZE
   };
   package->dfu = init(Dfu, &dfuConfig);
-  assert(package->dfu != NULL);
+  assert(package->dfu != nullptr);
 
   const struct DfuBridgeConfig bridgeConfig = {
       .device = package->dfu,
@@ -187,16 +187,16 @@ void boardSetupDfuPackage(struct DfuPackage *package, struct Interface *flash,
       .writeonly = false
   };
   package->bridge = init(DfuBridge, &bridgeConfig);
-  assert(package->bridge != NULL);
+  assert(package->bridge != nullptr);
 }
 /*----------------------------------------------------------------------------*/
 void boardSetupMemoryFlash(struct MemoryPackage *package)
 {
-  package->timer = NULL;
-  package->spim = NULL;
+  package->timer = nullptr;
+  package->spim = nullptr;
 
   package->flash = init(Flash, &(struct FlashConfig){FLASH_BANK_0});
-  assert(package->flash != NULL);
+  assert(package->flash != nullptr);
 
   package->offset = 0;
   package->regions = flashGetGeometry(package->flash, package->geometry,
@@ -217,7 +217,7 @@ void boardSetupMemoryNOR(struct MemoryPackage *package)
       .xip = true
   };
   package->flash = init(W25QQuad, &w25Config);
-  assert(package->flash != NULL);
+  assert(package->flash != nullptr);
 
   uint32_t capacity = 0;
   uint32_t sector = 0;
@@ -253,7 +253,7 @@ struct Interface *boardSetupSerial(void)
   clockEnable(UART_CLOCKS[serialConfig.channel], &uartClockConfig);
 
   struct Interface * const interface = init(Serial, &serialConfig);
-  assert(interface != NULL);
+  assert(interface != nullptr);
   return interface;
 }
 /*----------------------------------------------------------------------------*/
@@ -273,7 +273,7 @@ struct Interface *boardSetupSpim(struct Timer *timer)
   };
 
   struct Interface * const interface = init(Spim, &spimConfig);
-  assert(interface != NULL);
+  assert(interface != nullptr);
   return interface;
 }
 /*----------------------------------------------------------------------------*/
@@ -290,7 +290,7 @@ struct Timer *boardSetupTimer(void)
   clockEnable(TIMER_CLOCKS[timerConfig.channel], &timerClockConfig);
 
   struct Timer * const timer = init(GpTimer, &timerConfig);
-  assert(timer != NULL);
+  assert(timer != nullptr);
   return timer;
 }
 /*----------------------------------------------------------------------------*/
@@ -307,7 +307,7 @@ struct Timer *boardSetupTimerAux0(void)
   clockEnable(TIMER_CLOCKS[timerConfig.channel], &timerClockConfig);
 
   struct Timer * const timer = init(GpTimer, &timerConfig);
-  assert(timer != NULL);
+  assert(timer != nullptr);
   return timer;
 }
 /*----------------------------------------------------------------------------*/
@@ -324,7 +324,7 @@ struct Timer *boardSetupTimerAux1(void)
   clockEnable(TIMER_CLOCKS[timerConfig.channel], &timerClockConfig);
 
   struct Timer * const timer = init(GpTimer, &timerConfig);
-  assert(timer != NULL);
+  assert(timer != nullptr);
   return timer;
 }
 /*----------------------------------------------------------------------------*/
@@ -341,7 +341,7 @@ struct Timer *boardSetupTimerAux2(void)
   clockEnable(TIMER_CLOCKS[timerConfig.channel], &timerClockConfig);
 
   struct Timer * const timer = init(GpTimer, &timerConfig);
-  assert(timer != NULL);
+  assert(timer != nullptr);
   return timer;
 }
 /*----------------------------------------------------------------------------*/
@@ -367,7 +367,7 @@ struct Usb *boardSetupUsbFs(void)
   clockEnable(UsbClock, &usbClockConfig);
 
   struct Usb * const usb = init(UsbDevice, &fsUsbConfig);
-  assert(usb != NULL);
+  assert(usb != nullptr);
   return usb;
 }
 /*----------------------------------------------------------------------------*/
@@ -385,6 +385,6 @@ struct Usb *boardSetupUsbHs(void)
   assert(clockReady(ExternalOsc));
 
   struct Usb * const usb = init(HsUsbDevice, &hsUsbConfig);
-  assert(usb != NULL);
+  assert(usb != nullptr);
   return usb;
 }
