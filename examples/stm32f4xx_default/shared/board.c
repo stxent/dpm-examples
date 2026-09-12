@@ -246,9 +246,9 @@ struct Interface *boardSetupSpi1(void)
 {
   static const struct SpiConfig spiConfig = {
       .rate = 2000000,
-      .miso = PIN(PORT_B, 4),
-      .mosi = PIN(PORT_A, 7),
-      .sck = PIN(PORT_A, 5),
+      .miso = BOARD_SPI1_MISO,
+      .mosi = BOARD_SPI1_MOSI,
+      .sck = BOARD_SPI1_SCK,
       .channel = SPI1,
       .mode = 0,
       .rxDma = DMA2_STREAM2,

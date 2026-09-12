@@ -14,7 +14,7 @@
 #define BOARD_LED_0       PIN(PORT_F, 9)
 #define BOARD_LED_1       PIN(PORT_F, 10)
 #define BOARD_LED         BOARD_LED_0
-#define BOARD_LED_INV     false
+#define BOARD_LED_INV     true
 /*----------------------------------------------------------------------------*/
 struct Dfu;
 struct DfuBridge;

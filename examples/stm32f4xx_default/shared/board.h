@@ -10,20 +10,37 @@
 #include <halm/generic/work_queue_irq.h>
 #include <halm/pin.h>
 /*----------------------------------------------------------------------------*/
+#define BOARD_TYPE_BLACKBOARD
+/* #define BOARD_TYPE_BLACKPILL */
+
+#ifdef BOARD_TYPE_BLACKBOARD
+#  define BOARD_LED_0       PIN(PORT_F, 9)
+#  define BOARD_LED_1       PIN(PORT_F, 10)
+#  define BOARD_SPI_CS_0    PIN(PORT_B, 14)
+
+#  define BOARD_SPI1_MISO   PIN(PORT_B, 4)
+#  define BOARD_SPI1_MOSI   PIN(PORT_B, 5)
+#  define BOARD_SPI1_SCK    PIN(PORT_B, 3)
+#else
+#  define BOARD_LED_0       PIN(PORT_C, 13)
+#  define BOARD_LED_1       PIN(PORT_B, 2)
+#  define BOARD_LED_2       PIN(PORT_A, 15)
+#  define BOARD_SPI_CS_0    PIN(PORT_A, 4)
+
+#  define BOARD_SPI1_MISO   PIN(PORT_B, 4)
+#  define BOARD_SPI1_MOSI   PIN(PORT_A, 7)
+#  define BOARD_SPI1_SCK    PIN(PORT_A, 5)
+#endif
+
 #define BOARD_BUTTON        PIN(PORT_A, 0)
 #define BOARD_BUTTON_INV    false
-#define BOARD_LED_0         PIN(PORT_C, 13)
-#define BOARD_LED_1         PIN(PORT_B, 2)
-#define BOARD_LED_2         PIN(PORT_A, 15)
 #define BOARD_LED           BOARD_LED_0
-#define BOARD_LED_INV       false
-#define BOARD_SPI_CS_0      PIN(PORT_A, 3)
+#define BOARD_LED_INV       true
 #define BOARD_SPI_CS_1      PIN(PORT_B, 12)
-#define BOARD_SPI_CS_2      PIN(PORT_A, 4)
 #define BOARD_UART_BUFFER   512
 
-#define BOARD_MEM_CS        BOARD_SPI_CS_2
-#define BOARD_SPI_CS        BOARD_SPI_CS_0
+#define BOARD_MEM_CS        BOARD_SPI_CS_0
+#define BOARD_SPI_CS        BOARD_SPI_CS_1
 
 #define BOARD_SENSOR_CS_0   BOARD_SPI_CS
 #define BOARD_SENSOR_CS     BOARD_SENSOR_CS_0

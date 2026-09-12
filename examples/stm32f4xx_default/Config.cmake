@@ -30,6 +30,7 @@ set(BUNDLE_LIBS "m")
 
 # Define template list
 set(TEMPLATES_LIST
+        i2c_m24
         spi_w25q
         spi_mx35
         systick

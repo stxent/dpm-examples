@@ -174,7 +174,7 @@ struct Interface *boardSetupSpi(void)
       .dma = {DMA0_CHANNEL0, DMA0_CHANNEL1}
   };
 
-  clockEnable(Spi0Clock, &spiClockConfig);
+  clockEnable(Spi3Clock, &spiClockConfig);
 
   struct Interface * const interface = init(SpiDma, &spiDmaConfig);
   assert(interface != nullptr);
