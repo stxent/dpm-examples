@@ -59,7 +59,7 @@
 #define BOARD_USB_MSC_RX        0x01
 #define BOARD_USB_MSC_TX        0x81
 
-DEFINE_WQ_IRQ(WQ_LP)
+DEFINE_WQ_IRQ(WQ_HP)
 /*----------------------------------------------------------------------------*/
 struct Interface;
 struct Interrupt;
@@ -77,7 +77,7 @@ struct StreamPackage
 void boardSetupClockExt(void);
 void boardSetupClockPll(void);
 void boardSetupDefaultWQ(void);
-void boardSetupLowPriorityWQ(void);
+void boardSetupHighPriorityWQ(void);
 struct Interrupt *boardSetupButton(enum InputEvent);
 struct Interface *boardSetupDisplayBus(void);
 struct Interface *boardSetupI2C(void);

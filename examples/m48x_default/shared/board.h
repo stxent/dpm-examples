@@ -28,7 +28,7 @@
 #define BOARD_USB_MSC_RX  0x01
 #define BOARD_USB_MSC_TX  0x81
 
-DEFINE_WQ_IRQ(WQ_LP)
+DEFINE_WQ_IRQ(WQ_HP)
 /*----------------------------------------------------------------------------*/
 struct Interface;
 struct Interrupt;

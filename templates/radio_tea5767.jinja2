@@ -205,7 +205,6 @@ int main(void)
   timerSetOverflow(eventTimer, timerGetFrequency(eventTimer) / 10);
 
   struct Timer * const stateTimer = boardSetupTimerAux();
-  timerSetOverflow(stateTimer, timerGetFrequency(stateTimer) / 1000);
 
   const struct TEA57XXConfig radioConfig = {
       .bus = i2c,
@@ -237,8 +236,6 @@ int main(void)
   tea57xxSetCallback(radio, onRadioEvent, &context);
   tea57xxSetErrorCallback(radio, onErrorEvent, &context);
 
-  /* Start radio timer */
-  timerEnable(stateTimer);
   /* Start Work Queue */
   wqStart(WQ_DEFAULT);
 

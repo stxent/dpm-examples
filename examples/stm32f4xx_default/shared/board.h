@@ -18,6 +18,9 @@
 #  define BOARD_LED_1       PIN(PORT_F, 10)
 #  define BOARD_SPI_CS_0    PIN(PORT_B, 14)
 
+#  define BOARD_I2C2_SCL    PIN(PORT_B, 10)
+#  define BOARD_I2C2_SDA    PIN(PORT_B, 11)
+
 #  define BOARD_SPI1_MISO   PIN(PORT_B, 4)
 #  define BOARD_SPI1_MOSI   PIN(PORT_B, 5)
 #  define BOARD_SPI1_SCK    PIN(PORT_B, 3)
@@ -26,6 +29,9 @@
 #  define BOARD_LED_1       PIN(PORT_B, 2)
 #  define BOARD_LED_2       PIN(PORT_A, 15)
 #  define BOARD_SPI_CS_0    PIN(PORT_A, 4)
+
+#  define BOARD_I2C2_SCL    PIN(PORT_B, 10)
+#  define BOARD_I2C2_SDA    PIN(PORT_B, 3)
 
 #  define BOARD_SPI1_MISO   PIN(PORT_B, 4)
 #  define BOARD_SPI1_MOSI   PIN(PORT_A, 7)
@@ -52,7 +58,7 @@
 #define BOARD_USB_CDC_RX    0x02
 #define BOARD_USB_CDC_TX    0x82
 
-DEFINE_WQ_IRQ(WQ_LP)
+DEFINE_WQ_IRQ(WQ_HP)
 /*----------------------------------------------------------------------------*/
 struct Interface;
 struct Interrupt;
@@ -60,14 +66,16 @@ struct Timer;
 struct Usb;
 /*----------------------------------------------------------------------------*/
 void boardSetupClockExt(void);
+void boardSetupClockOutput(unsigned int);
 void boardSetupClockPll(void);
 void boardSetupDefaultWQ(void);
-void boardSetupLowPriorityWQ(void);
+void boardSetupHighPriorityWQ(void);
 struct Interrupt *boardSetupButton(void);
 struct Interface *boardSetupFlash(void);
 struct Interface *boardSetupI2C(void);
 struct Interface *boardSetupI2C1(void);
 struct Interface *boardSetupI2C2(void);
+void *boardSetupMemorySRAM(void);
 struct Interrupt *boardSetupSensorEvent(enum InputEvent, enum PinPull);
 struct Interface *boardSetupSerial(void);
 struct Interface *boardSetupSerial1(void);

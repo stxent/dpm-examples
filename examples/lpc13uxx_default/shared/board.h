@@ -28,7 +28,7 @@
 #define BOARD_USB_CDC_RX  0x02
 #define BOARD_USB_CDC_TX  0x82
 
-DEFINE_WQ_IRQ(WQ_LP)
+DEFINE_WQ_IRQ(WQ_HP)
 /*----------------------------------------------------------------------------*/
 struct Interface;
 struct Interrupt;
@@ -38,7 +38,7 @@ struct Usb;
 void boardSetupClockExt(void);
 void boardSetupClockPll(void);
 void boardSetupDefaultWQ(void);
-void boardSetupLowPriorityWQ(void);
+void boardSetupHighPriorityWQ(void);
 struct Interrupt *boardSetupButton(void);
 struct Interface *boardSetupI2C(void);
 struct Interface *boardSetupIrda(bool);

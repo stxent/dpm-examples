@@ -44,7 +44,7 @@ static const struct ExternalOscConfig extOscConfig = {
     .frequency = 12000000
 };
 /*----------------------------------------------------------------------------*/
-DECLARE_WQ_IRQ(WQ_LP, SPI_ISR)
+DECLARE_WQ_IRQ(WQ_HP, SPI_ISR)
 /*----------------------------------------------------------------------------*/
 void boardResetClock(void)
 {
@@ -106,7 +106,7 @@ void boardSetupDefaultWQ(void)
   assert(WQ_DEFAULT != nullptr);
 }
 /*----------------------------------------------------------------------------*/
-void boardSetupLowPriorityWQ(void)
+void boardSetupHighPriorityWQ(void)
 {
   static const struct WorkQueueIrqConfig wqIrqConfig = {
       .size = 4,
@@ -114,8 +114,8 @@ void boardSetupLowPriorityWQ(void)
       .priority = 0
   };
 
-  WQ_LP = init(WorkQueueIrq, &wqIrqConfig);
-  assert(WQ_LP != nullptr);
+  WQ_HP = init(WorkQueueIrq, &wqIrqConfig);
+  assert(WQ_HP != nullptr);
 }
 /*----------------------------------------------------------------------------*/
 struct Interrupt *boardSetupButton(enum InputEvent event)

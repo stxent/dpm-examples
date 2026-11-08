@@ -171,7 +171,7 @@ int main(void)
   bool event = false;
 
   boardSetupClockPll();
-  boardSetupLowPriorityWQ();
+  boardSetupHighPriorityWQ();
 
   const struct Pin blockingLed = pinInit(BOARD_LED_0);
   pinOutput(blockingLed, BOARD_LED_INV);
@@ -193,10 +193,10 @@ int main(void)
   };
   struct Interface * const memory = init(M24, &m24Config);
   assert(memory != nullptr);
-  m24SetUpdateWorkQueue(memory, WQ_LP);
+  m24SetUpdateWorkQueue(memory, WQ_HP);
 
   /* Start Work Queue for driver event processing */
-  wqStart(WQ_LP);
+  wqStart(WQ_HP);
 
   /* Configure the timer for read/write events */
   timerSetOverflow(eventTimer, timerGetFrequency(eventTimer) * 5);

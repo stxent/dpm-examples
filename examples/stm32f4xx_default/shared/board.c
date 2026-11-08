@@ -9,6 +9,7 @@
 #include <halm/platform/stm32/clocking.h>
 #include <halm/platform/stm32/exti.h>
 #include <halm/platform/stm32/flash.h>
+#include <halm/platform/stm32/fsmc_sram.h>
 #include <halm/platform/stm32/gptimer.h>
 #include <halm/platform/stm32/i2c.h>
 #include <halm/platform/stm32/serial_dma.h>
@@ -69,7 +70,7 @@ static const struct PllConfig pllConfigArray[] = {
     }
 };
 /*----------------------------------------------------------------------------*/
-DECLARE_WQ_IRQ(WQ_LP, FLASH_ISR)
+DECLARE_WQ_IRQ(WQ_HP, FLASH_ISR)
 /*----------------------------------------------------------------------------*/
 void boardSetupClockExt(void)
 {
@@ -81,6 +82,19 @@ void boardSetupClockExt(void)
   clockEnable(SystemClock, &(struct SystemClockConfig){CLOCK_EXTERNAL});
 
   clockEnable(MainClock, &mainClockConfig);
+}
+/*----------------------------------------------------------------------------*/
+void boardSetupClockOutput(unsigned int divisor)
+{
+  const struct ClockOutputConfig clockOutputConfig = {
+      .divisor = divisor,
+      .pin = PIN(PORT_A, 8),
+      .source = CLOCK_PLL
+  };
+
+  [[maybe_unused]] const enum Result res =
+      clockEnable(ClockOutput1, &clockOutputConfig);
+  assert(res == E_OK);
 }
 /*----------------------------------------------------------------------------*/
 void boardSetupClockPll(void)
@@ -123,7 +137,7 @@ void boardSetupDefaultWQ(void)
   assert(WQ_DEFAULT != nullptr);
 }
 /*----------------------------------------------------------------------------*/
-void boardSetupLowPriorityWQ(void)
+void boardSetupHighPriorityWQ(void)
 {
   static const struct WorkQueueIrqConfig wqIrqConfig = {
       .size = 4,
@@ -131,8 +145,8 @@ void boardSetupLowPriorityWQ(void)
       .priority = 0
   };
 
-  WQ_LP = init(WorkQueueIrq, &wqIrqConfig);
-  assert(WQ_LP != nullptr);
+  WQ_HP = init(WorkQueueIrq, &wqIrqConfig);
+  assert(WQ_HP != nullptr);
 }
 /*----------------------------------------------------------------------------*/
 struct Interrupt *boardSetupButton(void)
@@ -179,8 +193,8 @@ struct Interface *boardSetupI2C2(void)
 {
   static const struct I2CConfig i2cConfig = {
       .rate = 100000,
-      .scl = PIN(PORT_B, 10),
-      .sda = PIN(PORT_B, 3),
+      .scl = BOARD_I2C2_SCL,
+      .sda = BOARD_I2C2_SDA,
       .channel = I2C2,
       .rxDma = DMA1_STREAM2,
       .txDma = DMA1_STREAM7
@@ -189,6 +203,32 @@ struct Interface *boardSetupI2C2(void)
   struct Interface * const interface = init(I2C, &i2cConfig);
   assert(interface != nullptr);
   return interface;
+}
+/*----------------------------------------------------------------------------*/
+void *boardSetupMemorySRAM(void)
+{
+  static const struct FsmcSramConfig fsmcSramConfig = {
+      .timings = {
+          .oe = 0,
+          .rd = 70,
+          .we = 30,
+          .wr = 70
+      },
+
+      .width = {
+          .address = 19,
+          .data = 16
+      },
+
+      .speed = PIN_SLEW_FAST,
+      .subbank = 2,
+      .useWriteEnable = true
+  };
+
+  struct FsmcSram * const memory = init(FsmcSram, &fsmcSramConfig);
+  assert(memory != nullptr);
+
+  return fsmcSramAddress(memory);
 }
 /*----------------------------------------------------------------------------*/
 struct Interrupt *boardSetupSensorEvent(enum InputEvent edge, enum PinPull pull)
